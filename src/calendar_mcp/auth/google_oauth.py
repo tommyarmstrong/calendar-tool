@@ -1,11 +1,12 @@
 from typing import Any
 
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
 from app.config import settings
-from services.redis_services import load_tokens, save_tokens
+from services.redis_services import load_tokens, purge_tokens, save_tokens
 
 
 def _client_config() -> dict[str, dict[str, str | list[str]]]:
@@ -56,7 +57,8 @@ def get_creds() -> Credentials | None:
     tokens = load_tokens()
     if not tokens:
         return None
-    return Credentials(
+
+    creds = Credentials(
         tokens["token"],
         refresh_token=tokens.get("refresh_token") or None,
         token_uri=str(tokens["token_uri"]),
@@ -64,6 +66,43 @@ def get_creds() -> Credentials | None:
         client_secret=str(tokens["client_secret"]),
         scopes=list(tokens["scopes"] or []),
     )
+
+    # Check if token needs refresh
+    return refresh_creds(creds)
+
+
+def refresh_creds(creds: Credentials) -> Credentials | None:
+    # Check if token needs refresh
+    if not creds.expired:
+        return creds
+
+    if creds.expired and creds.refresh_token:
+        try:
+            # Refresh the token
+            creds.refresh(Request())
+
+            # Save the new tokens
+            new_tokens = {
+                "token": creds.token,
+                "refresh_token": creds.refresh_token,
+                "token_uri": creds.token_uri,
+                "client_id": creds.client_id,
+                "client_secret": creds.client_secret,
+                "scopes": list(creds.scopes) if creds.scopes else [],
+                "expiry": creds.expiry.isoformat() if creds.expiry else None,
+            }
+            save_tokens(new_tokens)
+
+            return creds
+
+        except Exception as e:
+            # Remove invalid tokens
+            purge_tokens()
+            raise ValueError(f"Failed to refresh token: {e}") from e
+
+    # Token is expired but no refresh token available
+    purge_tokens()
+    return None
 
 
 def calendar_service() -> Any | None:

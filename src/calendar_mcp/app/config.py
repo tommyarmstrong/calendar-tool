@@ -5,6 +5,8 @@ from pydantic import field_validator
 
 from infrastructure.platform_manager import get_parameters
 
+GOOGLE_TOKEN_TTL = 3600 * 20 * 14  # 14 days
+
 
 def _validate_required_param(value: str | None, param_name: str) -> str:
     """Validate that a required parameter is not empty.

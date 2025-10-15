@@ -1,10 +1,9 @@
 import json
-from datetime import UTC, datetime
 
 from cryptography.fernet import Fernet
 from redis import Redis
 
-from app.config import settings
+from app.config import GOOGLE_TOKEN_TTL, settings
 
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
@@ -31,7 +30,9 @@ def _get_fernet() -> Fernet:
     return Fernet(_get_encryption_key())
 
 
-def encrypt_sensitive_fields(tokens: dict[str, str | None]) -> dict[str, str | None]:
+def encrypt_sensitive_fields(
+    tokens: dict[str, str | list[str] | None],
+) -> dict[str, str | list[str] | None]:
     """
     Encrypt sensitive token fields before storing in Redis.
 
@@ -87,35 +88,14 @@ def decrypt_sensitive_fields(tokens: dict[str, str | None]) -> dict[str, str | N
     return decrypted_tokens
 
 
-def save_tokens(tokens: dict[str, str | None]) -> None:
+def save_tokens(tokens: dict[str, str | list[str] | None]) -> None:
     print("Saving tokens (sensitive fields will be encrypted)")
     # Encrypt sensitive fields before storing
     encrypted_tokens = encrypt_sensitive_fields(tokens)
+    print(f"Encrypted tokens: {encrypted_tokens}")
+
     redis.hset(USER_KEY, mapping={"tokens": json.dumps(encrypted_tokens)})
-
-    # Set TTL based on token expiry
-    expiry_str = tokens.get("expiry")
-    if expiry_str:
-        try:
-            expiry_dt = datetime.fromisoformat(str(expiry_str).replace("Z", "+00:00"))
-            # If the datetime is naive (no timezone), assume it's UTC
-            if expiry_dt.tzinfo is None:
-                expiry_dt = expiry_dt.replace(tzinfo=UTC)
-            now = datetime.now(UTC)
-            ttl_seconds = int((expiry_dt - now).total_seconds())
-            print(f"TTL seconds: {ttl_seconds}")
-
-            # Set TTL, but ensure it's at least 1 minute and at most 7 days
-            ttl_seconds = max(60, min(ttl_seconds, 7 * 24 * 3600))
-            redis.expire(USER_KEY, ttl_seconds)
-            print(f"Set token TTL to {ttl_seconds} seconds (expires: {expiry_dt})")
-        except (ValueError, TypeError) as e:
-            print(f"Warning: Could not parse token expiry, setting default TTL: {e}")
-            # Default to 1 hour if expiry parsing fails
-            redis.expire(USER_KEY, 3600)
-    else:
-        # Default to 1 hour if no expiry provided
-        redis.expire(USER_KEY, 3600)
+    redis.expire(USER_KEY, GOOGLE_TOKEN_TTL)
 
 
 def load_tokens() -> dict[str, str | None] | None:
@@ -123,37 +103,13 @@ def load_tokens() -> dict[str, str | None] | None:
     if not raw:
         return None
 
-    encrypted_tokens = json.loads(str(raw))
-
     # Decrypt sensitive fields
-    tokens = decrypt_sensitive_fields(encrypted_tokens)
-
-    # Check if token is expired
-    if is_token_expired(tokens):
-        print("Token has expired, removing from Redis")
-        redis.delete(USER_KEY)
-        return None
-
-    return tokens
+    encrypted_tokens = json.loads(str(raw))
+    return decrypt_sensitive_fields(encrypted_tokens)
 
 
-def is_token_expired(tokens: dict[str, str | None]) -> bool:
-    """Check if the token has expired based on the expiry field."""
-    expiry_str = tokens.get("expiry")
-    print(f"Expiry string: {expiry_str}")
-    if not expiry_str:
-        return False  # No expiry info, assume valid
-
-    try:
-        expiry_dt = datetime.fromisoformat(str(expiry_str).replace("Z", "+00:00"))
-        # If the datetime is naive (no timezone), assume it's UTC
-        if expiry_dt.tzinfo is None:
-            expiry_dt = expiry_dt.replace(tzinfo=UTC)
-        now = datetime.now(UTC)
-        return now >= expiry_dt
-    except (ValueError, TypeError):
-        # If we can't parse expiry, assume it's valid
-        return False
+def purge_tokens() -> None:
+    redis.delete(USER_KEY)
 
 
 def save_timezone(tz: str) -> None:

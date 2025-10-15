@@ -43,6 +43,8 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         return create_response(404, "Not Found")
 
     # Check authentication for MCP routes (routes tht begin with "/mcp/")
+    # TODO: This should not use the bearer token auth. Use the OAuth flow and/or sit behind mTLS
+
     if route.startswith("/mcp/"):
         try:
             check_authentication(event)
