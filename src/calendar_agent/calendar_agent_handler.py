@@ -7,7 +7,9 @@ def agent_lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """AWS Lambda entry point for Calendar Agent."""
     try:
         result = process(event)
-        return result  # type: ignore[no-any-return]
+        # Type assertion: process() returns dict[str, Any] as declared
+        assert isinstance(result, dict)
+        return result
     except Exception as e:
         import traceback
 
