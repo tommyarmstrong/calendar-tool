@@ -1,5 +1,5 @@
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any, Optional
 
 class Credentials:
     """Google OAuth2 Credentials class for authentication."""
@@ -25,5 +25,7 @@ class Credentials:
 
     def refresh(self, request: Any) -> None: ...
     def valid(self) -> bool: ...
+    @property
+    def expired(self) -> bool: ...
 
 __all__ = ["Credentials"]
