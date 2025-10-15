@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "calendar-agent"
+version = "0.1.0"
+description = "Calendar Agent with MCP integration"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Tommy Armstrong" }]
+
+dependencies = [
+  "fastapi==0.115.2",
+  "uvicorn==0.30.6",
+  "python-dotenv==1.0.1",
+  "pydantic==2.9.2",
+  "requests==2.32.3",
+]
+
+[project.scripts]
+calendar-agent = "calendar_agent.app.main:process"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# -------------------------
+# Ruff
+# -------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+extend-exclude = [
+  ".git", ".venv", "venv", "node_modules", "build", "dist",
+  ".pytest_cache", ".mypy_cache", ".ruff_cache",
+]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+# first-party packages in THIS repo
+known-first-party = ["calendar_agent", "calendar_agent_api", "calendar_agent_clients"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "preserve"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+# -------------------------
+# mypy
+# -------------------------
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["src"]
+files = ["src"]
+namespace_packages = true
+explicit_package_bases = true
+exclude = "(^venv|\\.venv|\\.mypy_cache|\\.ruff_cache|build|dist|node_modules)"
+
+# strict-ish defaults
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Import settings
+ignore_missing_imports = false
+follow_imports = "normal"

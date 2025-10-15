@@ -1,0 +1,72 @@
+{
+  "function_name": "calendar_agent",
+  "handler_name": "calendar_agent_handler.agent_lambda_handler",
+  "region_name": "us-east-1",
+  "runtime": "python3.13",
+  "architecture": "x86_64",
+  "timeout": 60,
+  "memory_size": 128,
+  "role_name": "calendarAgentRole",
+  "policy_name": "CalendarAgentPolicy",
+  "policy_file": "aws_calendar_agent_iam_policy.json",
+  "zip_filename": "calendar_agent_lambda.zip",
+  "code_files": [
+    "__init__.py",
+    "calendar_agent_handler.py",
+    "app/__init__.py",
+    "app/config.py",
+    "app/logging.py",
+    "app/main.py",
+    "infrastructure/__init__.py",
+    "infrastructure/data_models.py",
+    "infrastructure/openai_gpt_manager.py",
+    "infrastructure/platform_manager.py",
+    "prompts/prompts.md",
+    "services/__init__.py",
+    "services/cache_service.py",
+    "services/llm_service.py",
+    "services/mcp_client_service.py",
+    "services/mcp_discovery_service.py",
+    "services/renderer_service.py"
+  ],
+  "layers": [
+    {
+      "layer_name": "calendarAgentLayer",
+      "layer_type": "custom_layer",
+      "layer_packages": [
+        "openai",
+        "redis",
+        "requests"
+      ]
+    }
+  ],
+  "test_event_data": {},
+  "parameters": {
+        "/parameter/apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
+        "/parameter/apps/prod/calendar/calendar_tz": "Europe/London",
+        "/parameter/apps/prod/secrets/google_client_id": "XXX",
+        "/parameter/apps/prod/calendar/google_redirect_uri": "http://localhost:8000/oauth/callback",
+        "/parameter/apps/prod/calendar/google_scopes":
+            [
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar.readonly"
+            ],
+        "/parameter/apps/prod/calendar/slack_pa_integration": "false",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_users": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_channels": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_bot": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_signing_secret": "XXX",
+        "/parameter/apps/prod/infra/redis_host": "localhost",
+        "/parameter/apps/prod/infra/redis_port": 999
+  },
+    "secrets": {
+        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
+        "/parameter/apps/prod/secrets/calendar_token_encryption_key": "XXX",
+        "/parameter/apps/prod/secrets/google_client_secret": "XXX",
+        "/parameter/apps/prod/secrets/openai_api_key": "XXX",
+        "/parameter/apps/prod/secrets/redis_password": "XXX",
+        "/parameter/apps/prod/secrets/slack_pa_bot_token": "XXX",
+        "/parameter/apps/prod/secrets/slack_pa_signing_secret": "XXX"
+    }
+
+}
