@@ -1,0 +1,13 @@
+{
+    "calendar_mcp_url": "https://localhost:8000",
+    "calendar_tz": "Europe/London",
+    "google_client_id": "XXX",
+    "google_client_secret": "XXX",
+    "google_redirect_uri": "http://localhost:8000/oauth/callback",
+    "google_scopes":
+        [
+        "https://www.googleapis.com/auth/calendar.events",
+        "https://www.googleapis.com/auth/calendar.readonly"
+        ]
+
+}

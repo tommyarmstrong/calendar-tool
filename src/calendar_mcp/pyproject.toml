@@ -1,0 +1,109 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "calendar-mcp-service"
+version = "0.1.0"
+description = "MCP provider for Google Calendar (FastAPI + Google OAuth)"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "Tommy Armstrong" }]
+
+dependencies = [
+  "fastapi==0.115.2",
+  "uvicorn==0.30.6",
+  "python-dotenv==1.0.1",
+  "pydantic==2.9.2",
+  "redis==5.0.8",
+  "requests==2.32.3",
+  "google-api-python-client==2.146.0",
+  "google-auth==2.35.0",
+  "google-auth-oauthlib==1.2.1",
+  "cryptography==43.0.0",
+]
+
+[project.scripts]
+calendar-mcp-serve = "app.main:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# -------------------------
+# Ruff
+# -------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src"]
+extend-exclude = [
+  ".git", ".venv", "venv", "node_modules", "build", "dist",
+  ".pytest_cache", ".mypy_cache", ".ruff_cache",
+]
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+# first-party packages in THIS repo (update if you add more)
+known-first-party = ["app", "auth", "handler", "infrastructure", "mcp", "policy", "services", "tools"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "preserve"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+# -------------------------
+# mypy
+# -------------------------
+[tool.mypy]
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+mypy_path = ["src", "typings"]
+files = ["src"]   # Only type-check code under src/
+namespace_packages = true
+explicit_package_bases = true
+exclude = "(^typings/|\\.venv|\\.mypy_cache|\\.ruff_cache|build|dist|node_modules|tests/_data)"
+
+# strict-ish defaults
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Third-party libs with partial/absent type hints
+[[tool.mypy.overrides]]
+module = [
+  "googleapiclient.*",
+  "google.oauth2.*",
+  "google_auth_oauthlib.*",
+  "httplib2.*",
+  "fastapi.*",
+  "pytest.*",
+  "fakeredis.*"
+]
+ignore_missing_imports = true
+
+# FastAPI decorator issues
+[[tool.mypy.overrides]]
+module = "fast_api_server.server"
+disable_error_code = ["misc"]
+
+# -------------------------
+# pydantic mypy plugin (optional tuning)
+# -------------------------
+[tool.pydantic-mypy]
+init_typed = true
+warn_untyped_fields = true
+warn_required_dynamic_aliases = true

@@ -1,0 +1,26 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowReadParamsUnderPath",
+        "Effect": "Allow",
+        "Action": [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath",
+          "ssm:DescribeParameters"
+        ],
+        "Resource": [
+          "arn:aws:ssm:us-east-1:{aws_account_id}:parameter/apps/prod/calendar/*",
+          "arn:aws:ssm:us-east-1:{aws_account_id}:parameter/apps/prod/infra/*",
+          "arn:aws:ssm:us-east-1:{aws_account_id}:parameter/apps/prod/secrets/*"
+        ]
+      },
+      {
+        "Sid": "AllowDecryptForSecureString",
+        "Effect": "Allow",
+        "Action": "kms:Decrypt",
+        "Resource": "*"
+      }
+    ]
+  }
