@@ -1,0 +1,14 @@
+# .cursorrules
+rules:
+  - Always use 4 spaces for indentation
+  - Prefer Ruff and Mypy for linting/type checking
+  - If user provides incomplete code, ask clarifying questions
+  - Code is executed inside Conda environments. Do not install packages without asking first
+  - Provide brief docstrings for every function, including every argument, return and other relevant info
+  - Ask questions if you need more information before changing code
+  - All Python function definitions must include explicit type annotations for every parameter and for the return type
+  - Code must respect strict type checking (Pyright)
+  - Formatting, import sorting, and linting must follow Ruff settings
+  - Prefer pathlib over os.path for filesystem paths
+  - Use f-strings instead of string concatenation or format()
+  - Use dict, list and tuple type definitions instead of Dict, List, Optional

@@ -1,0 +1,76 @@
+{
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "strict",
+
+  "include": [
+    "src",
+  ],
+  "exclude": [
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "node_modules",
+    "**/__pycache__",
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache"
+  ],
+  "stubPath": "typings",
+  "executionEnvironments": [
+    {
+      "root": "src/calendar-agent",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Darwin",
+      "extraPaths": []
+    },
+    {
+      "root": "src/calendar-agent-api",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Darwin",
+      "extraPaths": []
+    },
+    {
+      "root": "src/calendar-install/src",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Darwin",
+      "extraPaths": []
+    },
+    {
+      "root": "src/calendar-mcp",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Darwin",
+      "extraPaths": []
+    }
+  ],
+
+  // Imports & stubs
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "warning",
+  "reportMissingModuleSource": "none",
+
+  // QoL
+  "reportUnusedImport": "warning",
+  "reportUnusedVariable": "warning",
+  "reportImplicitStringConcatenation": "warning",
+
+  // Strict optionals
+  "reportOptionalMemberAccess": "error",
+  "reportOptionalSubscript": "error",
+  "reportOptionalCall": "error",
+
+  // Enforce strong function typing (parameters)
+  "reportMissingParameterType": "error",
+  "reportMissingTypeArgument": "error",
+  "reportUntypedFunctionDecorator": "error",
+
+  // Respect declared types / overrides
+  "reportIncompatibleVariableOverride": "error",
+  "reportIncompatibleMethodOverride": "error",
+
+  // Control "unknown" noise
+  "reportUnknownParameterType": "error",
+  "reportUnknownArgumentType": "warning",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none"
+}
