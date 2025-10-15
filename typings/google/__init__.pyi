@@ -1,1 +1,1 @@
-# Google API type stubs
+# Google packages type stubs
