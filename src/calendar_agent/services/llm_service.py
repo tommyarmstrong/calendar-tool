@@ -112,4 +112,6 @@ def plan_mcp_call(message: str) -> dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in tool arguments: {e}") from e
 
-    return llm_response  # type: ignore[no-any-return]
+    # Type assertion: llm.generate() returns a dict-like response
+    assert isinstance(llm_response, dict)
+    return llm_response
