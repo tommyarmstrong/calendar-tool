@@ -15,7 +15,6 @@ USER_KEY = "user:local"
 def _get_encryption_key() -> bytes:
     """Get or generate encryption key for token encryption."""
     key = settings.calendar_token_encryption_key
-    print(f"Encryption key: {key}")
     if not key:
         raise ValueError("CALENDAR_TOKEN_ENCRYPTION_KEY is not set")
 
@@ -52,8 +51,7 @@ def encrypt_sensitive_fields(
             try:
                 encrypted_value = fernet.encrypt(str(tokens[field]).encode())
                 encrypted_tokens[field] = encrypted_value.decode()
-            except Exception as e:
-                print(f"Warning: Failed to encrypt {field}: {e}")
+            except Exception:
                 # Keep original value if encryption fails
                 encrypted_tokens[field] = tokens[field]
 
@@ -80,8 +78,7 @@ def decrypt_sensitive_fields(tokens: dict[str, str | None]) -> dict[str, str | N
             try:
                 decrypted_value = fernet.decrypt(str(tokens[field]).encode())
                 decrypted_tokens[field] = decrypted_value.decode()
-            except Exception as e:
-                print(f"Warning: Failed to decrypt {field}: {e}")
+            except Exception:
                 # Keep original value if decryption fails (might be unencrypted)
                 decrypted_tokens[field] = tokens[field]
 
@@ -89,10 +86,8 @@ def decrypt_sensitive_fields(tokens: dict[str, str | None]) -> dict[str, str | N
 
 
 def save_tokens(tokens: dict[str, str | list[str] | None]) -> None:
-    print("Saving tokens (sensitive fields will be encrypted)")
     # Encrypt sensitive fields before storing
     encrypted_tokens = encrypt_sensitive_fields(tokens)
-    print(f"Encrypted tokens: {encrypted_tokens}")
 
     redis.hset(USER_KEY, mapping={"tokens": json.dumps(encrypted_tokens)})
     redis.expire(USER_KEY, GOOGLE_TOKEN_TTL)

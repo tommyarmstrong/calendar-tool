@@ -97,7 +97,6 @@ async def tools_call(request: Request) -> Response:
 @app.get("/oauth/start")
 def oauth_start() -> RedirectResponse:
     url = start_auth_url()
-    print(f"OAuth start URL: {url}")
     return RedirectResponse(url)
 
 
@@ -109,7 +108,6 @@ def oauth_callback(code: str | None = None, error: str | None = None) -> PlainTe
     if not code:
         return PlainTextResponse("Missing code", status_code=400)
     finish_auth(code)
-    print("OAuth complete, tokens stored.")
     return PlainTextResponse("Google connected ✅ You can close this tab.")
 
 
