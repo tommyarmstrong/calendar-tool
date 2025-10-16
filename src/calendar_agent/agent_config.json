@@ -8,7 +8,7 @@
   "memory_size": 128,
   "role_name": "calendarAgentRole",
   "policy_name": "CalendarAgentPolicy",
-  "policy_file": "aws_calendar_agent_iam_policy.json",
+  "policy_file": "agent_iam_policy.json",
   "zip_filename": "calendar_agent_lambda.zip",
   "code_files": [
     "__init__.py",

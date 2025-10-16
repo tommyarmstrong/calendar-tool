@@ -11,9 +11,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -42,54 +40,6 @@ REDIS_HOST = infra_params["redis_host"]
 REDIS_PORT = infra_params["redis_port"]
 
 logger = create_logger(logger_name="calendar-client", log_level="INFO")
-logger.info("Starting Calendar Client")
-
-
-def parse_response(response_message: dict[str, Any]) -> None:
-    """
-    Parse the free/busy response from the Calendar Agent API.
-    """
-    if response_message.get("kind") == "calendar#freeBusy":
-        start_timestamp = pretty_datetime(response_message.get("timeMin", ""))
-        end_timestamp = pretty_datetime(response_message.get("timeMax", ""))
-        logger.info(f"In the time window: {start_timestamp} - {end_timestamp}")
-        logger.info("You have events scheduled in the following spots...")
-        calendars = response_message.get('calendars', {})
-        for calendar, busy in calendars.items():
-            logger.info(f">> Calendar: {calendar.capitalize()} : {busy.get('busy', [])}")
-
-    elif response_message.get("error"):
-        code = response_message.get("error", {}).get("code")
-        message = response_message.get("error", {}).get("message")
-        logger.error(f"{code} - {message}")
-        if code.strip() == "not_authenticated" and message.strip() == "Google not linked":
-            logger.info("Link your Google account to the MCP service.")
-        sys.exit(1)
-
-    else:
-        logger.info(f"Response: {json.dumps(response_message, indent=2)}")
-    return None
-
-
-def pretty_datetime(
-    iso_utc: str, tz: str = "Europe/London", fmt: str = "%a %d %b %Y, %H:%M (%Z)"
-) -> str:
-    """
-    Convert an ISO 8601 UTC datetime string (e.g., '2025-10-13T00:00:00.000Z')
-    into a nicely formatted local time string.
-
-    Args:
-        iso_utc: ISO 8601 string ending with 'Z' (UTC).
-        tz: IANA timezone for output (default 'Europe/London').
-        fmt: strftime format for output (default 'Mon 13 Oct 2025, 01:00 (BST)').
-
-    Returns:
-        Formatted datetime string in the target timezone.
-    """
-    # Make it RFC 3339-friendly for fromisoformat
-    dt_utc = datetime.fromisoformat(iso_utc.replace("Z", "+00:00"))
-    dt_local = dt_utc.astimezone(ZoneInfo(tz))
-    return dt_local.strftime(fmt)
 
 
 def make_request(
@@ -187,14 +137,17 @@ def poll_for_status(status_key: str, timeout: int = CLIENT_TIMEOUT) -> None:
         if result:
             status_code = result.get("status_code")
             message = result.get("message")
-            # assert message is dict[str, Any], "Message is not a dictionary in expected format"
 
-            if status_code == 200 and isinstance(message, dict):
-                parse_response(message)
+            if status_code == "200" and message:
+                logger.info(message)
                 logger.info(f"Response received in {round(elapsed, 2)} seconds")
                 return
 
-            elif status_code == 202:
+            elif status_code == "401" and message:
+                logger.error(message)
+                return
+
+            elif status_code == "202":
                 time.sleep(delay)
                 attempt += 1
                 delay = min(delay * multiplier, max_delay)
@@ -334,8 +287,7 @@ def main() -> None:
             sys.exit(1)
 
         if status_code == 202:
-            logger.info(response['message'])
-            logger.info(response['status_update_key'])
+            logger.info(f"Processing with request ID: {response['request_id']}")
             logger.info("Polling for status update...")
             poll_for_status(response['status_update_key'])
 

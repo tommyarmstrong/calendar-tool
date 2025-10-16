@@ -133,16 +133,16 @@ def invoke_lambda(
             'lambda_handler'.
     """
     logger = create_logger(logger_name="calendar-agent-api", log_level="INFO")
-    logger.info(
+    logger.debug(
         f"Invoking lambda function {function_name} "
         + f"with handler {lambda_handler_filename}.{lambda_handler}"
     )
 
     # Go up to parent directory and look for the function_name project
-    current_project_root = Path(__file__).resolve().parent.parent.parent
+    current_project_root = Path(__file__).resolve().parent.parent
     parent_dir = current_project_root.parent
-    logger.info(f"Current project root: {current_project_root}")
-    logger.info(f"Searching parent: {parent_dir}")
+    logger.debug(f"Current project root: {current_project_root}")
+    logger.debug(f"Searching parent: {parent_dir}")
 
     # Try to find the project directory by replacing - with _ in function_name
     function_name_with_underscores = function_name.replace("-", "_")
@@ -183,10 +183,21 @@ def invoke_lambda(
     with temporarily_in_sys_path(module_dir, project_root):
         with temporarily_change_dir(module_dir):
             try:
-                # If another 'services' package was already imported (e.g., from your API repo),
-                # remove it so our sibling project's 'services' can be imported instead.
-                sys.modules.pop("infrastructure", None)
-                sys.modules.pop("services", None)
+                # Clear all potentially conflicting modules to ensure clean imports
+                modules_to_clear = ["infrastructure", "services", "app", "auth", "clients"]
+                for module_name_to_clear in modules_to_clear:
+                    # Remove from sys.modules if it exists
+                    if module_name_to_clear in sys.modules:
+                        del sys.modules[module_name_to_clear]
+                    # Also remove any submodules
+                    modules_to_remove = [
+                        key
+                        for key in sys.modules.keys()
+                        if key.startswith(f"{module_name_to_clear}.")
+                    ]
+                    for mod in modules_to_remove:
+                        del sys.modules[mod]
+
                 invalidate_caches()
 
                 module = import_module(module_name)
@@ -206,8 +217,19 @@ def invoke_lambda(
                 if p not in sys.path:
                     sys.path.insert(0, p)
 
-            # Also ensure any stale 'services' binding is cleared in this thread.
-            sys.modules.pop("services", None)
+            # Clear all potentially conflicting modules in this thread too
+            modules_to_clear = ["infrastructure", "services", "app", "auth", "clients"]
+            for module_name_to_clear in modules_to_clear:
+                # Remove from sys.modules if it exists
+                if module_name_to_clear in sys.modules:
+                    del sys.modules[module_name_to_clear]
+                # Also remove any submodules
+                modules_to_remove = [
+                    key for key in sys.modules.keys() if key.startswith(f"{module_name_to_clear}.")
+                ]
+                for mod in modules_to_remove:
+                    del sys.modules[mod]
+
             invalidate_caches()
 
             logger.debug(f"Thread {module_name}.{lambda_handler} starting execution")

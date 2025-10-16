@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse, Response
 
 def _process_response(lambda_resp: dict[str, Any]) -> Response | JSONResponse:
     """Convert an AWS Lambda-style proxy response into a FastAPI Response."""
-    print(lambda_resp)
     status_code = lambda_resp.get("statusCode", 200)
     content_type = lambda_resp.get("headers", {}).get("Content-Type", "text/plain")
     body = lambda_resp.get("body", "")

@@ -34,7 +34,7 @@ def pretty_datetime(
     return dt_local.strftime(fmt)
 
 
-def render_mcp_result(result: dict[str, Any]) -> str:
+def render_mcp_result(result: dict[str, Any]) -> tuple[str, str]:
     if result.get("kind") == "calendar#freeBusy":
         start_timestamp = pretty_datetime(result.get("timeMin", ""))
         end_timestamp = pretty_datetime(result.get("timeMax", ""))
@@ -51,6 +51,16 @@ def render_mcp_result(result: dict[str, Any]) -> str:
                 end = pretty_datetime(event.get("end"), fmt="%H:%M (%Z)")
                 result_string += f"\t{start} - {end}\n"
 
-        return result_string
+        status_code = "200"
+        return status_code, result_string
 
-    return json.dumps(result)
+    if result.get("error"):
+        code = result.get("error", {}).get("code")
+        message = result.get("error", {}).get("message")
+        if code.strip() == "not_authenticated" and message.strip() == "Google not linked":
+            result_string = "Not authenticated: Link your Google account to the MCP service."
+            status_code = "401"
+            return status_code, result_string
+
+    # TODO: Add other cases and then change default to 500
+    return "200", json.dumps(result)

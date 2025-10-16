@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import redis
+from app.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
 
 
 class RedisCache:
@@ -39,3 +40,11 @@ class RedisCache:
     def get_status(self, key: str) -> str | None:
         result = self.get_json(key)
         return result.get("status") if result else None
+
+
+def status_update(request_id: str, status_code: str, status: str, ttl: int = 15 * 60) -> None:
+    assert REDIS_HOST is not None and REDIS_PORT is not None and REDIS_PASSWORD is not None
+    cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
+
+    status_update_key = cache.get_status_key(request_id)
+    cache.set_json(status_update_key, {"status_code": status_code, "message": status}, ttl=ttl)

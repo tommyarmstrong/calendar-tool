@@ -1,0 +1,47 @@
+{
+  "function_name": "calendar_agent_api",
+  "handler_name": "calendar_agent_api_handler.lambda_handler",
+  "region_name": "us-east-1",
+  "runtime": "python3.13",
+  "architecture": "x86_64",
+  "timeout": 60,
+  "memory_size": 128,
+  "role_name": "calendarAgentAPIRole",
+  "policy_name": "CalendarAgentAPIPolicy",
+  "policy_file": "agent_api_iam_policy.json",
+  "zip_filename": "calendar_agent_api_lambda.zip",
+  "code_files": [
+    "__init__.py",
+    "calendar_agent_api_handler.py",
+    "infrastructure/__init__.py",
+    "infrastructure/platform_manager.py",
+    "services/__init__.py",
+    "services/cache_service.py"
+  ],
+  "layers": [
+    {
+      "layer_name": "calendarAgentAPILayer",
+      "layer_type": "custom_layer",
+      "layer_packages": [
+        "redis",
+        "slack-sdk"
+      ]
+    }
+  ],
+  "test_event_data": {},
+  "parameters": {
+        "/parameter/apps/prod/calendar/slack_pa_integration": "false",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_users": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_channels": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_allowed_bot": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_signing_secret": "XXX",
+        "/parameter/apps/prod/infra/redis_host": "localhost",
+        "/parameter/apps/prod/infra/redis_port": 999
+  },
+    "secrets": {
+        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
+        "/parameter/apps/prod/secrets/redis_password": "XXX",
+        "/parameter/apps/prod/secrets/slack_pa_signing_secret": "XXX"
+    }
+
+}

@@ -1,12 +1,12 @@
 import json
 from typing import Any
 
-from app.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT, SLACK_PA_BOT_TOKEN
+from app.config import SLACK_PA_BOT_TOKEN
 from app.logging import log_plan_response
 from app.process_event import process_event_data
 from infrastructure.platform_manager import create_logger
 from infrastructure.slack_manager import post_to_slack
-from services.cache_service import RedisCache
+from services.cache_service import status_update
 from services.llm_service import plan_mcp_call
 from services.mcp_client_service import call_mcp
 from services.renderer_service import render_mcp_result
@@ -21,14 +21,6 @@ def create_response(
 ) -> dict[str, Any]:
     """
     Create a standard HTTP response.
-
-    Args:
-        status_code (int): HTTP status code.
-        body: Response body (str or dict).
-        content_type (str, optional): Content-Type header. Defaults to "text/plain".
-
-    Returns:
-        dict: Standardized response dictionary.
     """
     return {
         "statusCode": status_code,
@@ -44,7 +36,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     # Process the event data
     try:
         data = process_event_data(event)
-        logger.info("User message recieved.")
     except ValueError as e:
         logger.error(e)
         return create_response(status_code=400, body=str(e), content_type="text/plain")
@@ -92,22 +83,24 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         return create_response(status_code=400, body=error_message, content_type="text/plain")
 
     # Render the result as a string
-    result_string = render_mcp_result(result)
+    status_code, result_string = render_mcp_result(result)
     logger.info(f"Result: {result_string}")
 
     # Post the result to the cache if the post came from a client (not Slack)
-    if data.get("client_id"):
-        assert REDIS_HOST is not None, "REDIS_HOST is not configured"
-        assert REDIS_PORT is not None, "REDIS_PORT is not configured"
-        assert REDIS_PASSWORD is not None, "REDIS_PASSWORD is not configured"
-        status = {"status_code": 200, "message": result}
+    if data.get("request_type") == "client":
+        request_id = data.get("request_id")
+        if not request_id:
+            logger.error("Client request without a request_id: cannot update status")
+            return create_response(
+                status_code=400,
+                body="Missing request_id: cannot update status",
+                content_type="text/plain",
+            )
 
-        cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
-        status_update_key = cache.get_status_key(data["request_id"])
-        cache.set_json(status_update_key, status, ttl=15 * 60)
+        status_update(request_id=request_id, status_code=status_code, status=result_string)
 
     # Post the result to Slack channel if the post came from Slack
-    if data.get("slack_signature"):
+    if data.get("request_type") == "slack":
         assert SLACK_PA_BOT_TOKEN is not None, "SLACK_PA_BOT_TOKEN is not configured"
         response = post_to_slack(
             channel_id=data["channel_id"],

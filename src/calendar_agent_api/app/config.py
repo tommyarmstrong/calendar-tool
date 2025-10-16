@@ -1,0 +1,38 @@
+import uuid
+
+from infrastructure.platform_manager import get_parameters
+
+secrets = get_parameters(
+    ["calendar_bearer_token", "slack_pa_signing_secret", "redis_password"],
+    "/apps/prod/secrets/",
+    decrypt=True,
+)
+
+CALENDAR_BEARER_TOKEN = secrets["calendar_bearer_token"]
+SLACK_PA_SIGNING_SECRET = secrets["slack_pa_signing_secret"]
+REDIS_PASSWORD = secrets["redis_password"]
+
+infra_params = get_parameters(["redis_host", "redis_port"], "/apps/prod/infra/")
+
+REDIS_HOST = infra_params["redis_host"]
+REDIS_PORT = infra_params["redis_port"]
+
+INVOKE_LAMBDA_NAME = "calendar_agent"
+X_CLIENT_ID = "dev-test-client-v1"
+
+# Validate configuration values
+for k, v in {
+    "CALENDAR_BEARER_TOKEN": CALENDAR_BEARER_TOKEN,
+    "INVOKE_LAMBDA_NAME": INVOKE_LAMBDA_NAME,
+    "REDIS_HOST": REDIS_HOST,
+    "REDIS_PORT": REDIS_PORT,
+    "REDIS_PASSWORD": REDIS_PASSWORD,
+    "SLACK_PA_SIGNING_SECRET": SLACK_PA_SIGNING_SECRET,
+    "X_CLIENT_ID": X_CLIENT_ID,
+}.items():
+    if not v:
+        raise ValueError(f"Configuration value is invalid: {k}")
+
+
+def generate_request_id() -> str:
+    return str(uuid.uuid4())
