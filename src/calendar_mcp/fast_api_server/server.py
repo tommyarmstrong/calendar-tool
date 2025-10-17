@@ -1,5 +1,12 @@
 # This is a simple test server for the API.
 # Run with: uvicorn fast_api_server.server:app --reload --port 8000
+#
+# To run with mTLS add the following switches to the uvicorn command:
+# --ssl-certfile server.crt --ssl-keyfile server.key --ssl-ca-certs ca.crt --ssl-cert-reqs 2
+#
+# Where --ssl-cert-reqs 0=CERT_NONE, 1=CERT_OPTIONAL, 2=CERT_REQUIRED
+
+
 from typing import Any
 
 from fastapi import FastAPI, Request

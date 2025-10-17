@@ -4,8 +4,9 @@ from typing import Any
 
 import requests
 
-BASE = os.getenv("CALENDAR_MCP_URL", "http://localhost:8000")
-TOKEN = os.getenv("CALENDAR_MCP_TOKEN", "dev-test-token")
+# BASE = os.getenv("CALENDAR_MCP_URL", "http://localhost:8000")
+BASE = "https://calendar-mcp.tommyarmstrong.uk"
+TOKEN = os.getenv("CALENDAR_BEARER_TOKEN", "dev-test-token")
 
 
 def call_tool(name: str, arguments: dict[str, str]) -> Any:

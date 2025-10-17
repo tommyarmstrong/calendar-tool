@@ -148,8 +148,8 @@ def _get_parameter_store_config() -> dict[str, Any]:
         "google_redirect_uri": google_redirect_uri,
         "google_scopes": google_scopes,
         "redis_url": redis_url,
-        "calendar_bearer_token": calendar_bearer_token,
         "calendar_token_encryption_key": calendar_token_encryption_key,
+        "calendar_bearer_token": calendar_bearer_token,
     }
 
 
