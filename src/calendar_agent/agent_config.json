@@ -36,7 +36,8 @@
       "layer_packages": [
         "openai",
         "redis",
-        "requests"
+        "requests",
+        "requests_pkcs12"
       ]
     }
   ],
