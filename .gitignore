@@ -42,6 +42,15 @@ Thumbs.db
 *.log
 logs/
 
+# Certificates
+certificates/
+*.crt
+*.p12
+*.pem
+*.key
+*.csr
+*.b64
+
 # Temporary files
 *.tmp
 *.temp
