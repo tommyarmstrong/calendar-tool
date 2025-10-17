@@ -13,6 +13,13 @@
   "code_files": [
     "__init__.py",
     "calendar_agent_api_handler.py",
+    "app/__init__.py",
+    "app/config.py",
+    "app/main.py",
+    "app/process_event.py",
+    "auth/__init__.py",
+    "auth/client_auth.py",
+    "auth/slack_auth.py",
     "infrastructure/__init__.py",
     "infrastructure/platform_manager.py",
     "services/__init__.py",
@@ -30,11 +37,7 @@
   ],
   "test_event_data": {},
   "parameters": {
-        "/parameter/apps/prod/calendar/slack_pa_integration": "false",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_users": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_channels": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_bot": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_signing_secret": "XXX",
+        "/parameter/apps/prod/calendar/slack_pa_integration": "true",
         "/parameter/apps/prod/infra/redis_host": "localhost",
         "/parameter/apps/prod/infra/redis_port": 999
   },
