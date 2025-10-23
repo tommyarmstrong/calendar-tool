@@ -1,0 +1,74 @@
+{
+  "function_name": "calendar_mcp",
+  "handler_name": "handler.lambda_handler",
+  "region_name": "us-east-1",
+  "runtime": "python3.13",
+  "timeout": 45,
+  "memory_size": 128,
+  "role_name": "calendarMCPRole",
+  "policy_name": "CalendarMCPPolicy",
+  "policy_file": "aws_calendar_mcp_iam_policy.json",
+  "zip_filename": "mcp_calendar_lambda.zip",
+  "code_files": [
+    "__init__.py",
+    "handler.py",
+    "app/__init__.py",
+    "app/config.py",
+    "app/main.py",
+    "auth/__init__.py",
+    "auth/bearer_token_auth.py",
+    "auth/google_oauth.py",
+    "infrastructure/__init__.py",
+    "infrastructure/platform_manager.py",
+    "mcp/__init__.py",
+    "mcp/manifest.py",
+    "mcp/router.py",
+    "mcp/schemas.py",
+    "services/__init__.py",
+    "services/redis_services.py",
+    "tools/__init__.py",
+    "tools/calendar.py"
+  ],
+  "layers": [
+    {
+      "layer_name": "calendarMCPLayer",
+      "layer_type": "custom_layer",
+      "layer_packages": [
+        "cryptography",
+        "google-auth",
+        "google-auth-oauthlib",
+        "google-api-python-client",
+        "pydantic",
+        "redis"
+      ]
+    }
+  ],
+  "test_event_data": {},
+  "parameters": {
+        "/parameter/apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
+        "/parameter/apps/prod/calendar/calendar_mcp_default_tz": "Europe/London",
+        "/parameter/apps/prod/calendar/google_client_id": "XXX",
+        "/parameter/apps/prod/calendar/google_redirect_uri": "https://localhost:8001/oauth/callback",
+        "/parameter/apps/prod/calendar/google_scopes": [
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar.readonly"
+        ],
+        "/parameter/apps/prod/infra/redis_host": "localhost",
+        "/parameter/apps/prod/infra/redis_port": 999
+  },
+  "secrets": {
+        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
+        "/parameter/apps/prod/secrets/calendar_token_encryption_key": "XXX",
+        "/parameter/apps/prod/secrets/google_client_secret": "XXX",
+        "/parameter/apps/prod/secrets/redis_password": "XXX"
+  },
+  "apigateway_routes": [
+    { "method": "GET", "path": "/.well-known/mcp/manifest", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "GET", "path": "/mcp/schemas", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "GET", "path": "/mcp/tools", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "POST", "path": "/mcp/tools/call", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "GET", "path": "/oauth/start", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "GET", "path": "/oauth/callback", "lambda": "calendar_mcp", "stage": "prod" },
+    { "method": "GET", "path": "/healthz", "lambda": "calendar_mcp", "stage": "prod" }
+  ]
+}

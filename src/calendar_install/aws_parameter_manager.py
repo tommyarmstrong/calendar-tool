@@ -1,9 +1,10 @@
+import argparse
 import os
+import sys
 
 import boto3
+from aws_config_manager import create_logger, get_config
 from botocore.exceptions import ClientError
-
-from aws_config_manager import create_logger
 
 logger = create_logger(log_level="INFO", logger_name="aws_deployment")
 
@@ -17,15 +18,21 @@ class ParameterManager:
     ):
         self.parameters = parameters
         self.upsert_to_aws = upsert_to_aws
+        self.region = region
         if upsert_to_aws:
             self.ssm = boto3.client("ssm", region_name=region)
         else:
             self.ssm = None
 
-    def _set_env_vars(self) -> list[str]:
-        params_to_check = []
-        export_commands = []
-        logger.info("Setting parameters in python enviornment")
+    def _generate_shell_script(self) -> list[str]:
+        """Generate shell script commands for environment variables."""
+        export_commands: list[str] = []
+
+        if not self.parameters:
+            logger.info("No parameters to include in shell script")
+            return export_commands
+
+        logger.info("Generating shell script commands")
         for p in self.parameters:
             key = p["Name"]
             assert isinstance(key, str), f"Key for {key} is not a string"
@@ -35,15 +42,10 @@ class ParameterManager:
             assert isinstance(key_upper, str), f"Key for {key} is not a string"
             assert isinstance(value, str), f"Value for {key} is not a string"
 
-            existing_key = os.getenv(key_upper)
-            if existing_key and existing_key != value:
-                logger.warning(
-                    f"Enviornment variable aleady exists with {key_upper} as {existing_key}"
-                )
-                params_to_check.append(key)
-
-            logger.debug(f"Setting {key_upper} to {value} in python enviornment")
-            os.environ[key_upper] = str(value)
+            # Skip secrets in shell script (they should be set manually)
+            if p.get("Type") == "SecureString":
+                logger.debug(f"Skipping secret {key_upper} in shell script")
+                continue
 
             # Collect export command for shell script
             export_commands.append(f"export {key_upper}={value}")
@@ -71,6 +73,35 @@ class ParameterManager:
         os.chmod(script_path, 0o755)
         logger.info(f"To apply these environment variables, run: source {script_path}")
 
+    def _get_secret_value_from_env(self, secret_name: str) -> str | None:
+        """
+        Get secret value from environment variable.
+        Tries both upper and lower case versions of the secret name.
+
+        Args:
+            secret_name: The name of the secret (e.g., "calendar_bearer_token")
+
+        Returns:
+            str | None: The secret value or None if not found
+        """
+        # Try different case variations
+        env_var_names = [
+            secret_name.upper(),
+            secret_name.lower(),
+            secret_name,
+        ]
+
+        for env_var_name in env_var_names:
+            value = os.getenv(env_var_name)
+            if value is not None:
+                logger.debug(
+                    f"Found secret {secret_name} in environment variable {env_var_name}"
+                )
+                return value
+
+        logger.warning(f"Secret {secret_name} not found in environment variables")
+        return None
+
     def _upload_to_ssm(self, param: dict[str, str | bool]) -> None:
         if self.ssm is None:
             logger.warning(f"Skipping upload to SSM for {param['Name']}")
@@ -84,12 +115,40 @@ class ParameterManager:
             param = param.copy()  # Create a copy to avoid modifying the original
             param["Name"] = param_name
 
+        # Handle secrets - get value from environment variables
+        if param.get("Type") == "SecureString":
+            # Extract the secret name from the parameter path (last part after /)
+            secret_name = param_name.split("/")[-1].lower()
+            secret_value = self._get_secret_value_from_env(secret_name)
+
+            if secret_value is None:
+                logger.error(
+                    f"Secret {secret_name} not found in environment variables. Skipping upload."
+                )
+                return
+
+            # Update the parameter with the environment variable value
+            param = param.copy()
+            param["Value"] = secret_value
+            logger.info(
+                f"Using secret value from environment variable for {param_name}"
+            )
+
         logger.info(f"Uploading parameter {param['Name']} to SSM")
         self.ssm.put_parameter(**param)
         return
 
     def _set_aws_parameters(self) -> None:
-        logger.info("Setting parameters in AWS SSM")
+        if not self.upsert_to_aws:
+            logger.info("Skipping upload to AWS SSM")
+            return
+
+        if not self.parameters:
+            logger.info("No parameters to upload to AWS SSM")
+            return
+
+        logger.info(f"Setting parameters in AWS SSM, region {self.region}.")
+
         try:
             for param in self.parameters:
                 self._upload_to_ssm(param)
@@ -101,7 +160,87 @@ class ParameterManager:
 
     def deploy(self, script_path: str = "set_env_vars.sh") -> None:
         logger.info("Processing parameters")
-        export_commands = self._set_env_vars()
+        export_commands = self._generate_shell_script()
         self._write_shell_script(export_commands, script_path)
         self._set_aws_parameters()
         return
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments for parameter manager configuration.
+
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="AWS Parameter Manager - Deploy parameters and secrets to SSM",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--config-file",
+        "-c",
+        required=True,
+        help="Path to JSON configuration file",
+    )
+
+    parser.add_argument(
+        "--script-path",
+        "-s",
+        default="set_env_vars.sh",
+        help="Path for the generated shell script (default: set_env_vars.sh)",
+    )
+
+    parser.add_argument(
+        "--no-aws",
+        action="store_true",
+        help="Skip uploading to AWS SSM (only set environment variables)",
+    )
+
+    return parser.parse_args()
+
+
+def main() -> int:
+    """
+    Main function to run the parameter manager from command line.
+
+    Returns:
+        int: Exit code (0 for success, 1 for error)
+    """
+    try:
+        # Parse command line arguments
+        args = parse_args()
+
+        # Load configuration from file
+        config = get_config(args.config_file)
+
+        # Create ParameterManager with configuration data
+        parameter_manager = ParameterManager(
+            parameters=config.parameters,
+            upsert_to_aws=not args.no_aws,
+            region=config.region_name,
+        )
+
+        logger.info("Starting parameter deployment...")
+        logger.info(f"Parameters: {len(config.parameters) if config.parameters else 0}")
+        if not config.parameters:
+            logger.info("No parameters found in configuration - nothing to deploy")
+            return 0
+
+        # Deploy parameters
+        parameter_manager.deploy(script_path=args.script_path)
+
+        logger.info("Parameter deployment completed successfully!")
+        return 0
+
+    except FileNotFoundError as e:
+        logger.error(f"Configuration file not found: {e}")
+        return 1
+    except Exception as e:
+        logger.error(f"Unexpected error during parameter deployment: {e}")
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

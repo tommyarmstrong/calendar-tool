@@ -1,4 +1,3 @@
-"""Type stubs for botocore."""
+from .config import Config
 
-# Re-export exceptions module
-from . import exceptions as exceptions
+__all__ = ["Config"]

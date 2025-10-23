@@ -53,10 +53,9 @@ def _get_bot_id(body_json: dict[str, Any]) -> str:
     return ""
 
 
-def _get_event_messsage(body_json: dict[str, Any]) -> str:
+def _get_event_messsage(event: dict[str, Any]) -> str:
     # Extract the message from the Slack event
-    ev = body_json.get("event", {}) or {}
-    raw_text = ev.get("text")  # e.g. "<@U09KXC8V0M8> Am I free on Friday?"
+    raw_text = event.get("text")  # e.g. "<@U09KXC8V0M8> Am I free on Friday?"
 
     # Remove the first leading @mention token if present (common for app_mention)
     message = None
@@ -75,13 +74,14 @@ def _generate_agent_payload(
 
     # Process Slack events
     if headers.get("x-slack-signature"):
+        event = body_json.get("event", {})
         return {
             "request_type": "slack",
             "request_id": request_id,
-            "user_id": str(body_json.get("user", "")),
-            "channel_id": str(body_json.get("channel", "")),
+            "user_id": str(event.get("user", "")),
+            "channel_id": str(event.get("channel", "")),
             "bot_user_id": _get_bot_id(body_json),
-            "message": _get_event_messsage(body_json),
+            "message": _get_event_messsage(event),
         }
 
     # Process Client events

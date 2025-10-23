@@ -9,6 +9,7 @@ It reads configuration from a JSON file and provides command-line argument overr
 import argparse
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -54,16 +55,68 @@ class AWSConfig:
     timeout: int
     memory_size: int
     role_name: str
-    policy_name: str
-    policy_file: str
     zip_filename: str
     code_files: list[str]
-    layers: list[Layer]
-    test_event_data: dict[str, Any]
-    parameters: list[dict[str, str | bool]]
     account_id: str
-    api_routes: list[dict[str, str]]
+    code_directory: Path
     architecture: str = field(default="x86_64")
+    policy_name: str | None = None
+    policy_file: str | None = None
+    layers: list[Layer] = field(default_factory=list)
+    test_event_data: dict[str, Any] = field(default_factory=dict)
+    parameters: list[dict[str, str | bool]] = field(default_factory=list)
+    api_routes: list[dict[str, str]] = field(default_factory=list)
+    apigateway_routes: list[dict[str, str]] = field(default_factory=list)
+
+    @classmethod
+    def _get_env_value(cls, key: str, is_secret: bool = False) -> str | None:
+        """
+        Get value from environment variable, trying different case variations.
+
+        Args:
+            key: The parameter/secret name from JSON
+            is_secret: Whether this is a secret (affects logging)
+
+        Returns:
+            str | None: The environment variable value or None if not found
+        """
+        # Extract the base name (last part after /)
+        base_name = key.split("/")[-1]
+
+        # Try different case variations
+        env_var_names = [
+            base_name.upper(),
+            base_name.lower(),
+            base_name,
+        ]
+
+        for env_var_name in env_var_names:
+            value = os.getenv(env_var_name)
+            if value is not None:
+                if is_secret:
+                    # For secrets, log name and masked value
+                    masked_value = value[:3] + "*********" if len(value) > 3 else "***"
+                    logger.info(
+                        f"Using environment variable for secret {base_name}: {masked_value}"
+                    )
+                else:
+                    # For parameters, log name and full value
+                    logger.info(
+                        f"Using environment variable for parameter {base_name}: {value}"
+                    )
+                return value
+
+        # If not found in environment, log that we're using JSON value
+        if is_secret:
+            logger.info(
+                f"Using JSON value for secret {base_name} (environment variable not found)"
+            )
+        else:
+            logger.info(
+                f"Using JSON value for parameter {base_name} (environment variable not found)"
+            )
+
+        return None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AWSConfig":
@@ -74,8 +127,8 @@ class AWSConfig:
             layers.append(
                 Layer(
                     layer_name=layer_data["layer_name"],
-                    layer_type=layer_data["layer_type"],
-                    layer_packages=layer_data["layer_packages"],
+                    layer_type=layer_data.get("layer_type", "custom_layer"),
+                    layer_packages=layer_data.get("layer_packages", []),
                 )
             )
 
@@ -85,9 +138,14 @@ class AWSConfig:
         # Handle parameters (non-encrypted)
         if "parameters" in data and isinstance(data["parameters"], dict):
             for key, value in data["parameters"].items():
+                assert isinstance(key, str), f"Key for {key} is not a string"
+                # Try to get value from environment variable first
+                env_value = cls._get_env_value(key, is_secret=False)
+                final_value = env_value if env_value is not None else value
+
                 transformed_parameters.append({
-                    "Name": key,
-                    "Value": value,
+                    "Name": key.lower(),  # Always use lowercase for AWS
+                    "Value": final_value,
                     "Type": "String",
                     "Overwrite": True,
                 })
@@ -95,9 +153,14 @@ class AWSConfig:
         # Handle secrets (encrypted)
         if "secrets" in data and isinstance(data["secrets"], dict):
             for key, value in data["secrets"].items():
+                assert isinstance(key, str), f"Key for {key} is not a string"
+                # Try to get value from environment variable first
+                env_value = cls._get_env_value(key, is_secret=True)
+                final_value = env_value if env_value is not None else value
+
                 transformed_parameters.append({
-                    "Name": key,
-                    "Value": value,
+                    "Name": key.lower(),  # Always use lowercase for AWS
+                    "Value": final_value,
                     "Type": "SecureString",
                     "Overwrite": True,
                     "Tier": "Standard",
@@ -107,25 +170,27 @@ class AWSConfig:
             function_name=data["function_name"],
             handler_name=data["handler_name"],
             region_name=data["region_name"],
-            runtime=data["runtime"],
-            architecture=data["architecture"],
-            timeout=data["timeout"],
-            memory_size=data["memory_size"],
+            runtime=data.get("runtime", "python3.13"),
+            architecture=data.get("architecture", "x86_64"),
+            timeout=data.get("timeout", 60),
+            memory_size=data.get("memory_size", 128),
             role_name=data["role_name"],
-            policy_name=data["policy_name"],
-            policy_file=data["policy_file"],
+            policy_name=data.get("policy_name"),
+            policy_file=data.get("policy_file"),
             zip_filename=data["zip_filename"],
             code_files=data["code_files"],
             layers=layers,
-            test_event_data=data["test_event_data"],
+            test_event_data=data.get("test_event_data", {}),
             parameters=transformed_parameters,
             account_id=data.get("account_id", ""),
             api_routes=data.get("api_routes", []),
+            apigateway_routes=data.get("apigateway_routes", []),
+            code_directory=Path(data.get("code_directory", "")),
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Convert AWSConfig to dictionary."""
-        return {
+        result: dict[str, Any] = {
             "function_name": self.function_name,
             "handler_name": self.handler_name,
             "region_name": self.region_name,
@@ -134,22 +199,36 @@ class AWSConfig:
             "timeout": self.timeout,
             "memory_size": self.memory_size,
             "role_name": self.role_name,
-            "policy_name": self.policy_name,
-            "policy_file": self.policy_file,
             "zip_filename": self.zip_filename,
             "code_files": self.code_files,
-            "layers": [
+            "account_id": self.account_id,
+            "code_directory": str(self.code_directory),
+        }
+
+        # Only include optional fields if they have values
+        if self.policy_name is not None:
+            result["policy_name"] = self.policy_name
+        if self.policy_file is not None:
+            result["policy_file"] = self.policy_file
+        if self.layers:
+            result["layers"] = [
                 {
                     "layer_name": layer.layer_name,
                     "layer_type": layer.layer_type,
                     "layer_packages": layer.layer_packages,
                 }
                 for layer in self.layers
-            ],
-            "test_event_data": self.test_event_data,
-            "parameters": self.parameters,
-            "account_id": self.account_id,
-        }
+            ]
+        if self.test_event_data:
+            result["test_event_data"] = self.test_event_data
+        if self.parameters:
+            result["parameters"] = self.parameters
+        if self.api_routes:
+            result["api_routes"] = self.api_routes
+        if self.apigateway_routes:
+            result["apigateway_routes"] = self.apigateway_routes
+
+        return result
 
 
 def get_aws_account_id(region_name: str = "us-east-1") -> str:
@@ -173,7 +252,7 @@ def get_aws_account_id(region_name: str = "us-east-1") -> str:
         raise Exception(f"Failed to get AWS account ID: {e}")
 
 
-def get_config(config_file: str = "aws_agent_config.json") -> AWSConfig:
+def get_config(config_file: str) -> AWSConfig:
     """
     Load configuration from JSON file and return AWSConfig object.
 
@@ -203,6 +282,14 @@ def get_config(config_file: str = "aws_agent_config.json") -> AWSConfig:
     except Exception as e:
         print(f"Warning: Could not get AWS account ID: {e}")
         data["account_id"] = ""
+
+    # Get the full path to the config directory
+
+    if data.get("code_directory"):
+        code_directory = Path(data.get("code_directory"))
+    else:
+        code_directory = Path(config_path.parent)
+    data["code_directory"] = code_directory
 
     return AWSConfig.from_dict(data)
 
@@ -246,6 +333,10 @@ def create_logger(
             pass
 
     return logger
+
+
+# Create logger after create_logger function is defined
+logger = create_logger(logger_name="aws_config", log_level="INFO")
 
 
 def parse_args() -> argparse.Namespace:
@@ -293,38 +384,57 @@ def print_config(config: AWSConfig) -> None:
 
     print("\n🔐 IAM Configuration:")
     print(f"  Role Name: {config.role_name}")
-    print(f"  Policy Name: {config.policy_name}")
-    print(f"  Policy File: {config.policy_file}")
+    if config.policy_name:
+        print(f"  Policy Name: {config.policy_name}")
+        print(f"  Policy File: {config.policy_file}")
+    else:
+        print("  Policy: (no custom policy configured)")
 
     print("\n📁 Deployment:")
     print(f"  Zip Filename: {config.zip_filename}")
     print(f"  Code Files: {len(config.code_files)} files")
 
     print("\n🔧 Layers:")
-    for i, layer in enumerate(config.layers, 1):
-        print(f"  {i}. {layer.layer_name} ({layer.layer_type})")
-        print(f"     Packages: {', '.join(layer.layer_packages)}")
+    if config.layers:
+        for i, layer in enumerate(config.layers, 1):
+            print(f"  {i}. {layer.layer_name} ({layer.layer_type})")
+            print(f"     Packages: {', '.join(layer.layer_packages)}")
+    else:
+        print("  (no layers configured)")
 
     print("\n⚙️  Parameters:")
-    for param_info in config.parameters:
-        key = param_info["Name"]
-        if isinstance(key, str):
-            key = key.split("/")[-1].upper()
-        if param_info["Type"] == "SecureString":
-            value = "*" * 8
-        else:
-            value = str(param_info["Value"])
-        print(f"  {key}:")
-        print(f"    Name: {param_info['Name']}")
-        print(f"    Value: {value}")
-        print(f"    Type: {param_info['Type']}")
-        print(f"    Overwrite: {param_info['Overwrite']}")
+    if config.parameters:
+        for param_info in config.parameters:
+            key = param_info["Name"]
+            if isinstance(key, str):
+                key = key.split("/")[-1].upper()
+            if param_info["Type"] == "SecureString":
+                value = "*" * 8
+            else:
+                value = str(param_info["Value"])
+            print(f"  {key}:")
+            print(f"    Name: {param_info['Name']}")
+            print(f"    Value: {value}")
+            print(f"    Type: {param_info['Type']}")
+            print(f"    Overwrite: {param_info['Overwrite']}")
+    else:
+        print("  (no parameters configured)")
 
     print("\n📊 Test Event Data:")
     if config.test_event_data:
         print(f"  {config.test_event_data}")
     else:
         print("  (empty)")
+
+    print("\n🌐 API Gateway Routes:")
+    if config.apigateway_routes:
+        for i, route in enumerate(config.apigateway_routes, 1):
+            print(f"  {i}. {route.get('method', 'N/A')} {route.get('path', 'N/A')}")
+            print(f"     Lambda: {route.get('lambda', 'N/A')}")
+            if route.get("stage"):
+                print(f"     Stage: {route.get('stage')}")
+    else:
+        print("  (no API Gateway routes configured)")
 
     print("\n" + "=" * 60)
 

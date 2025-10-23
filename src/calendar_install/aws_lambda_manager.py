@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 import boto3
 from aws_config_manager import AWSConfig, create_logger, get_config
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 PLATFORM = "manylinux2014_x86_64"
@@ -68,27 +69,49 @@ def retry_with_backoff(
 def zip_files(zip_path: Path, files: list[str]) -> None:
     """
     Create the deployment zip from a list of files.
+    For each file in the files list, find it in the code_directory and
+    preserve the relative structure inside the zip (e.g. app/main.py).
     Special case: if 'infrastructure/platform_manager.py' is requested,
     zip 'infrastructure/aws_platform_manager.py' instead, but keep the
     arcname as 'infrastructure/platform_manager.py'.
     """
-    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"zip_path: {zip_path}")
+    logger.debug(f"zip_path parent: {zip_path.parent}")
+
+    code_directory = zip_path.parent
+    logger.debug(f"code_directory: {code_directory}")
+    logger.debug(f"code_directory absolute: {code_directory.absolute()}")
+    logger.debug(f"code_directory exists: {code_directory.absolute().exists()}")
+
+    code_directory.mkdir(parents=True, exist_ok=True)
     special_dest = "infrastructure/platform_manager.py"
-    special_src = Path("infrastructure/aws_platform_manager.py")
+    special_src = code_directory / "infrastructure/aws_platform_manager.py"
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for rel in files:
-            dest_arcname = str(Path(rel))
-            # Special swap
-            if dest_arcname == special_dest and special_src.exists():
-                zf.write(special_src, arcname=dest_arcname)
-                logger.info(f"Substituted '{special_src}' → '{dest_arcname}' in zip")
+        for rel_file in files:
+            logger.debug(f"Processing file: {rel_file}")
+
+            # Special swap: if requesting platform_manager.py, use aws_platform_manager.py instead
+            if rel_file == special_dest and special_src.exists():
+                zf.write(special_src, arcname=rel_file)
+                logger.info(
+                    f"Substituted 'aws_platform_manager.py' → '{rel_file}' in zip"
+                )
                 continue
 
-            fp = Path(rel)
-            if not fp.exists():
-                raise FileNotFoundError(f"Code file '{rel}' not found")
-            zf.write(fp, arcname=dest_arcname)
+            # Find the file in the code directory
+            file_path = code_directory / rel_file
+            logger.debug(f"Looking for file: {file_path.absolute()}")
+            logger.debug(f"File exists: {file_path.exists()}")
+
+            if not file_path.exists():
+                raise FileNotFoundError(
+                    f"Code file '{rel_file}' not found in {code_directory}"
+                )
+
+            # Write the file to zip with the same relative path structure
+            zf.write(file_path, arcname=rel_file)
+            logger.debug(f"Added '{rel_file}' to zip")
 
 
 def load_code_bytes(zip_path: Path) -> bytes:
@@ -97,8 +120,20 @@ def load_code_bytes(zip_path: Path) -> bytes:
 
 
 def build_layer_zip(*, tmpdir: Path, packages: list[str], python_version: str) -> Path:
+    """
+    Build a Lambda layer zip file with the specified packages.
+
+    Args:
+        tmpdir: Temporary directory for building the layer
+        packages: List of Python packages to install
+        python_version: Python version for compatibility
+
+    Returns:
+        Path to the built layer zip file
+    """
     layer_root = tmpdir / "python"
     layer_root.mkdir(parents=True, exist_ok=True)
+
     if packages:
         cmd = [
             sys.executable,
@@ -118,23 +153,49 @@ def build_layer_zip(*, tmpdir: Path, packages: list[str], python_version: str) -
             *packages,
         ]
         print("Installing layer packages:", " ".join(packages))
-        subprocess.check_call(cmd)
+        try:
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to install packages: {e}")
+            raise
+
     layer_zip = tmpdir / "layer.zip"
     with zipfile.ZipFile(layer_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for p in layer_root.rglob("*"):
-            zf.write(p, arcname=str(p.relative_to(tmpdir)))
-    print(f"Built layer at {layer_zip}")
+            if p.is_file():  # Only add files, not directories
+                zf.write(p, arcname=str(p.relative_to(tmpdir)))
+
+    # Check layer size
+    layer_size = layer_zip.stat().st_size
+    layer_size_mb = layer_size / (1024 * 1024)
+    print(f"Built layer at {layer_zip} (size: {layer_size_mb:.2f} MB)")
+
+    # Warn if layer is getting large
+    if layer_size_mb > 30:
+        print(
+            f"WARNING: Layer size ({layer_size_mb:.2f} MB) is large and may cause upload timeouts"
+        )
+
     return layer_zip
 
 
 class LambdaManager:
     def __init__(self, config: AWSConfig):
         self.config = config
-        self.code_zip_path = Path(self.config.zip_filename).resolve()
+        self.code_zip_path = Path(
+            self.config.code_directory / self.config.zip_filename
+        ).resolve()
 
-        # AWS clients
+        # AWS clients with extended timeouts for large uploads
         self.iam_client = boto3.client("iam")
-        self.lambda_client = boto3.client("lambda")
+        self.lambda_client = boto3.client(
+            "lambda",
+            config=Config(
+                read_timeout=300,  # 5 minutes
+                connect_timeout=60,  # 1 minute
+                retries={"max_attempts": 3},
+            ),
+        )
 
     def _function_exists(self) -> bool:
         try:
@@ -359,16 +420,60 @@ class LambdaManager:
         layer_zip_bytes: bytes,
         compatible_runtimes: list[str] | str,
     ) -> str:
+        """
+        Publish a Lambda layer with retry logic for network timeouts.
+
+        Args:
+            layer_name: Name of the layer
+            layer_zip_bytes: Layer zip file content as bytes
+            compatible_runtimes: List of compatible Python runtimes
+
+        Returns:
+            Layer version ARN
+
+        Raises:
+            Exception: If layer publishing fails after all retries
+        """
         if isinstance(compatible_runtimes, str):
             compatible_runtimes = [compatible_runtimes]
-        resp = self.lambda_client.publish_layer_version(
-            LayerName=layer_name,
-            Content={"ZipFile": layer_zip_bytes},
-            CompatibleRuntimes=compatible_runtimes,
-        )
-        arn = str(resp["LayerVersionArn"])
-        logger.info(f"Published layer version: {arn}")
-        return arn
+
+        # Log layer size for debugging
+        layer_size_mb = len(layer_zip_bytes) / (1024 * 1024)
+        logger.info(f"Publishing layer '{layer_name}' (size: {layer_size_mb:.2f} MB)")
+
+        # Check if layer is too large (AWS limit is 250MB unzipped, 50MB zipped)
+        if len(layer_zip_bytes) > 50 * 1024 * 1024:  # 50MB
+            raise ValueError(
+                f"Layer zip file is too large: {layer_size_mb:.2f} MB (max: 50MB)"
+            )
+
+        def publish_layer_with_retry() -> str:
+            try:
+                resp = self.lambda_client.publish_layer_version(
+                    LayerName=layer_name,
+                    Content={"ZipFile": layer_zip_bytes},
+                    CompatibleRuntimes=compatible_runtimes,
+                )
+                arn = str(resp["LayerVersionArn"])
+                logger.info(f"Published layer version: {arn}")
+                return arn
+            except Exception as e:
+                logger.error(f"Failed to publish layer '{layer_name}': {e}")
+                raise
+
+        # Use retry logic for network timeouts and connection issues
+        try:
+            arn = retry_with_backoff(
+                publish_layer_with_retry,
+                max_retries=3,
+                base_delay=5.0,
+                max_delay=30.0,
+                backoff_multiplier=2.0,
+            )
+            return str(arn)
+        except Exception as e:
+            logger.error(f"Failed to publish layer '{layer_name}' after retries: {e}")
+            raise
 
     def _get_existing_layers(self) -> list[str]:
         try:
@@ -474,7 +579,7 @@ class LambdaManager:
         # Deploy the role if it doesn't exist
         self.deploy_role() if not self.role_arn else None
 
-        # Create the function
+        # Create or update the function
         if not self._function_exists():
             logger.info(f"Creating Lambda function: {self.config.function_name}")
             kwargs: dict[str, Any] = {
@@ -497,6 +602,24 @@ class LambdaManager:
             self._wait_for_lambda_ready()
             logger.info("Function created.")
 
+        else:
+            logger.info(
+                f"Lambda function {self.config.function_name} already exists. Updating configuration and code."
+            )
+
+            # Update function configuration
+            self._update_function_configuration(role_arn=self.role_arn)
+
+            # Update function code
+            logger.info("Updating Lambda code...")
+            self.lambda_client.update_function_code(
+                FunctionName=self.config.function_name,
+                ZipFile=code_zip_bytes,
+                Publish=True,
+            )
+            self._wait_for_lambda_ready()
+            logger.info("Function updated.")
+
     def deploy_role(self) -> None:
         logger.info("Deploying Lambda role")
         self.role_arn = self._ensure_role()
@@ -518,16 +641,6 @@ class LambdaManager:
         logger.info(f"Zipping function code to: {self.code_zip_path}")
         zip_files(self.code_zip_path, self.config.code_files)
 
-    def deploy_function(self) -> None:
-        logger.info("Deploying Lambda function")
-
-        # Deploy the role if it doesn't exist
-        self.deploy_role() if not self.role_arn else None
-
-        self.package_code()
-        self.create_function()
-        self.deploy_layers()
-
     def update_code(self) -> None:
         logger.info("Updating Lambda code...")
 
@@ -541,7 +654,16 @@ class LambdaManager:
         self._wait_for_lambda_ready()
         logger.info("Code updated.")
 
-    def deploy_layers(self, *, replace_layers: bool = True) -> None:
+    def deploy_layers(
+        self, *, replace_layers: bool = True, skip_large_layers: bool = False
+    ) -> None:
+        """
+        Deploy Lambda layers with optional skipping of large layers.
+
+        Args:
+            replace_layers: Whether to replace existing layers
+            skip_large_layers: Whether to skip layers that are too large (>30MB)
+        """
         logger.info("Deploying Lambda layers")
 
         if not self.config.layers:
@@ -556,18 +678,53 @@ class LambdaManager:
         with tempfile.TemporaryDirectory() as td:
             tmpdir = Path(td)
             for layer_def in self.config.layers:
-                python_version = self.config.runtime.replace("python", "")
-                layer_zip = build_layer_zip(
-                    tmpdir=tmpdir,
-                    packages=layer_def.layer_packages,
-                    python_version=python_version,
-                )
-                with open(layer_zip, "rb") as f:
-                    layer_bytes = f.read()
-                arn = self._publish_layer(
-                    layer_def.layer_name, layer_bytes, self.config.runtime
-                )
-                new_layer_arns.append(arn)
+                try:
+                    python_version = self.config.runtime.replace("python", "")
+                    layer_zip = build_layer_zip(
+                        tmpdir=tmpdir,
+                        packages=layer_def.layer_packages,
+                        python_version=python_version,
+                    )
+
+                    # Check layer size and skip if too large
+                    layer_size = layer_zip.stat().st_size
+                    layer_size_mb = layer_size / (1024 * 1024)
+
+                    if skip_large_layers and layer_size_mb > 30:
+                        logger.warning(
+                            f"Skipping layer '{layer_def.layer_name}' due to size: {layer_size_mb:.2f} MB"
+                        )
+                        continue
+
+                    with open(layer_zip, "rb") as f:
+                        layer_bytes = f.read()
+
+                    # Log final layer size before upload
+                    final_size_mb = len(layer_bytes) / (1024 * 1024)
+                    logger.info(
+                        f"Final layer '{layer_def.layer_name}' size: {final_size_mb:.2f} MB"
+                    )
+
+                    arn = self._publish_layer(
+                        layer_def.layer_name, layer_bytes, self.config.runtime
+                    )
+                    new_layer_arns.append(arn)
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to build/publish layer '{layer_def.layer_name}': {e}"
+                    )
+                    if not skip_large_layers:
+                        raise
+                    else:
+                        logger.warning(
+                            f"Skipping layer '{layer_def.layer_name}' due to error: {e}"
+                        )
+                        continue
+
+        if not new_layer_arns:
+            logger.warning("No layers were successfully built/published")
+            return
 
         existing = [] if replace_layers else self._get_existing_layers()
         layer_arns = (
@@ -584,8 +741,10 @@ class LambdaManager:
         logger.info("Layer(s) attached.")
 
     def deploy(self) -> None:
+        logger.info("Deploying Lambda function")
         self.deploy_role()
-        self.deploy_function()
+        self.package_code()
+        self.create_function()  # <-- Uploads code too
         self.deploy_layers()
 
 
@@ -610,6 +769,11 @@ def parse_args() -> argparse.Namespace:
         help="When attaching new layer(s), replace existing ones instead of appending.",
     )
     ap.add_argument(
+        "--skip-large-layers",
+        action="store_true",
+        help="Skip layers that are larger than 30MB to avoid upload timeouts.",
+    )
+    ap.add_argument(
         "--debug", action="store_true", help="Print AWS kwargs for troubleshooting."
     )
     args = ap.parse_args()
@@ -630,7 +794,9 @@ def main() -> None:
         lambda_manager.update_code()
 
     elif args.action == "layer":
-        lambda_manager.deploy_layers()
+        lambda_manager.deploy_layers(
+            replace_layers=args.replace_layers, skip_large_layers=args.skip_large_layers
+        )
 
 
 if __name__ == "__main__":

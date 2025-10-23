@@ -1,123 +1,169 @@
-# This is a simple test server for the API.
-# Run with: uvicorn fast_api_server.server:app --reload --port 8000
+# fast_api_server/server.py
 #
-# To run with mTLS add the following switches to the uvicorn command:
-# --ssl-certfile server.crt --ssl-keyfile server.key --ssl-ca-certs ca.crt --ssl-cert-reqs 2
+# Run the MCP server with mTLS on port 8000:
+# uvicorn fast_api_server.server:app --reload --port 8000 \
+# --ssl-certfile server.crt --ssl-keyfile server.key \
+# --ssl-ca-certs ca.crt --ssl-cert-reqs 2
 #
-# Where --ssl-cert-reqs 0=CERT_NONE, 1=CERT_OPTIONAL, 2=CERT_REQUIRED
+# Run the OAuth server with non-mTLS on port 8001:
+# uvicorn fast_api_server.server:app --reload --port 8001
 
 
+from __future__ import annotations
+
+import base64
+import time
+import traceback
 from typing import Any
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi import APIRouter, FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 
-from auth.google_oauth import finish_auth, start_auth_url
-from handler import lambda_handler
+from handler import lambda_handler  # your AWS-style handler
 
 
-def _lambda_to_fastapi_response(lambda_resp: dict[str, Any]) -> Response | JSONResponse:
+def _lambda_to_fastapi_response(lambda_resp: dict[str, Any]) -> Response:
     """
-    Convert an AWS Lambda-style proxy response into a FastAPI Response.
-
-    Args:
-        lambda_resp (dict): A dict like:
-            {
-                "statusCode": int,
-                "headers": {"Content-Type": str, ...},
-                "body": str,
-                "isBase64Encoded": bool
-            }
-
-    Returns:
-        Response: A FastAPI-compatible Response object.
+    Convert an HTTP API v2 Lambda proxy response to a FastAPI Response.
+    Expected Lambda response keys (HTTP API v2):
+      - statusCode: int
+      - headers: dict[str, str] (optional)
+      - body: str (JSON/text or base64-encoded data when isBase64Encoded=True)
+      - isBase64Encoded: bool (optional)
     """
-    status_code = lambda_resp.get("statusCode", 200)
-    content_type = lambda_resp.get("headers", {}).get("Content-Type", "text/plain")
+    status_code = int(lambda_resp.get("statusCode", 200))
+    headers: dict[str, Any] = lambda_resp.get("headers", {}) or {}
+    headers = {k: str(v) for k, v in headers.items()}
+
     body = lambda_resp.get("body", "")
-    is_base64 = lambda_resp.get("isBase64Encoded", False)
+    is_b64 = bool(lambda_resp.get("isBase64Encoded", False))
 
-    if is_base64:
-        import base64
+    if is_b64 and isinstance(body, str):
+        body_bytes = base64.b64decode(body)
+        return Response(content=body_bytes, status_code=status_code, headers=headers)
 
-        body = base64.b64decode(body)
-
-    # Handle dict content as JSON
     if isinstance(body, dict):
-        return JSONResponse(content=body, status_code=status_code)
+        return JSONResponse(content=body, status_code=status_code, headers=headers)
 
-    return Response(content=body, status_code=status_code, media_type=content_type)
+    ctype = headers.get("content-type") or headers.get("Content-Type") or "text/plain"
+    return Response(
+        content=(body or ""), status_code=status_code, media_type=ctype, headers=headers
+    )
 
 
-def _process_request(body: bytes, request: Request) -> Response | JSONResponse:
-    """Convert a FastAPI request to a Lambda-style event."""
-    headers = request.headers
-    query_params = dict(request.query_params)
-    path = request.url.path
+def _build_httpapi_v2_event(request: Request, body_bytes: bytes) -> dict[str, Any]:
+    """
+    Build an AWS API Gateway HTTP API v2 event from FastAPI's Request.
+    """
     method = request.method
-    routeKey = f"{method} {path}"
+    path = request.url.path
+    raw_query = request.url.query or ""
+    http_version = request.scope.get("http_version", "1.1")
 
-    event = {
-        "routeKey": routeKey,
-        "raw_path": request.url.path,
-        "body": body,
-        "isBase64Encoded": False,
-        "headers": headers,
-        "queryStringParameters": query_params,
-        "requestContext": {"routeKey": routeKey, "http": {"method": method, "path": path}},
+    # Body → string or base64 per HTTP API v2
+    is_b64 = False
+    if body_bytes:
+        try:
+            body_str = body_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            body_str = base64.b64encode(body_bytes).decode("ascii")
+            is_b64 = True
+    else:
+        body_str = ""
+
+    headers = {k: v for k, v in request.headers.items()}
+    now_ms = int(time.time() * 1000)
+    host = headers.get("host", "localhost")
+    domain_prefix = host.split(".")[0] if "." in host else host
+
+    return {
+        "version": "2.0",
+        "routeKey": f"{method} {path}",
+        "rawPath": path,
+        "rawQueryString": raw_query,
+        "headers": headers or None,
+        "queryStringParameters": dict(request.query_params) or None,
+        "requestContext": {
+            "accountId": "000000000000",
+            "apiId": "local",
+            "domainName": host,
+            "domainPrefix": domain_prefix,
+            "time": time.strftime("%d/%b/%Y:%H:%M:%S +0000", time.gmtime(now_ms / 1000)),
+            "timeEpoch": now_ms,
+            "http": {
+                "method": method,
+                "path": path,
+                "protocol": f"HTTP/{str(http_version).upper()}",
+                "sourceIp": request.client.host if request.client else "127.0.0.1",
+                "userAgent": headers.get("user-agent", ""),
+            },
+            "routeKey": f"{method} {path}",
+            "stage": "$default",
+        },
+        "body": body_str,
+        "pathParameters": None,
+        "stageVariables": None,
+        "isBase64Encoded": is_b64,
     }
-    # Response is a Lambda-style response. Set a direct HTTP response in FastAPI
-    lambda_response = lambda_handler(event, None)
-    return _lambda_to_fastapi_response(lambda_response)
 
 
-app: FastAPI = FastAPI(title="Calendar MCP Service")
+async def _process_request(request: Request) -> Response:
+    try:
+        body_bytes = await request.body()
+        event = _build_httpapi_v2_event(request, body_bytes)
+        lambda_resp = lambda_handler(event, None)
+        return _lambda_to_fastapi_response(lambda_resp)
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": "BridgeError", "detail": str(e)},
+        )
 
 
-# --- MCP Discovery and Tools---
-@app.get("/.well-known/mcp/manifest")
+# ===== FastAPI app & routers =====
+app = FastAPI(title="Calendar MCP Service")
+
+agent = APIRouter(prefix="/mcp", tags=["agent"])  # mTLS port / domain maps here
+oauth = APIRouter(prefix="/oauth", tags=["oauth"])  # non-mTLS port / domain maps here
+
+
+# --- MCP Discovery and Tools ---
+@agent.get("/.well-known/mcp/manifest")
 async def manifest(request: Request) -> Response:
-    body = await request.body()
-    return _process_request(body, request)
+    return await _process_request(request)
 
 
-@app.get("/mcp/schemas")
+@agent.get("/schemas")
 async def schemas(request: Request) -> Response:
-    body = await request.body()
-    return _process_request(body, request)
+    return await _process_request(request)
 
 
-@app.get("/mcp/tools")
+@agent.get("/tools")
 async def tools(request: Request) -> Response:
-    body = await request.body()
-    return _process_request(body, request)
+    return await _process_request(request)
 
 
-@app.post("/mcp/tools/call")
+@agent.post("/tools/call")
 async def tools_call(request: Request) -> Response:
-    body = await request.body()
-    return _process_request(body, request)
+    return await _process_request(request)
 
 
 # --- OAuth flow ---
-# TODO: This need to be moved to the procssor.py file.
-@app.get("/oauth/start")
-def oauth_start() -> RedirectResponse:
-    url = start_auth_url()
-    return RedirectResponse(url)
+@oauth.get("/start")
+async def oauth_start(request: Request) -> Response:
+    return await _process_request(request)
 
 
-# TODO: This need to be moved to the procssor.py file.
-@app.get("/oauth/callback")
-def oauth_callback(code: str | None = None, error: str | None = None) -> PlainTextResponse:
-    if error:
-        return PlainTextResponse(f"OAuth error: {error}", status_code=400)
-    if not code:
-        return PlainTextResponse("Missing code", status_code=400)
-    finish_auth(code)
-    return PlainTextResponse("Google connected ✅ You can close this tab.")
+@oauth.get("/callback")
+async def oauth_callback(request: Request) -> Response:
+    return await _process_request(request)
 
 
 @app.get("/healthz")
 def healthz() -> dict[str, bool]:
     return {"ok": True}
+
+
+app.include_router(agent)
+app.include_router(oauth)

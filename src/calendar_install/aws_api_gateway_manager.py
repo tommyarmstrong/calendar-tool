@@ -1,9 +1,11 @@
+import argparse
 import hashlib
 import json
+import sys
 from typing import Any
 
 import boto3
-from aws_config_manager import create_logger
+from aws_config_manager import create_logger, get_config
 from botocore.exceptions import ClientError
 
 logger = create_logger(logger_name="aws_deployment", log_level="INFO")
@@ -13,18 +15,17 @@ class APIGatewayManager:
     def __init__(
         self,
         api_name: str,
-        api_routes: list[dict[str, str]],
+        api_routes: list[dict[str, str]] | None = None,
         region_name: str = "us-east-1",
-        stage_name: str = "prod",
         account_id: str = "",
     ):
         self.api_name = api_name
-        self.api_routes = api_routes
         self.region_name = region_name
-        self.stage_name = stage_name
         self.account_id = account_id
         self.api_client = boto3.client("apigatewayv2", region_name=region_name)
         self.lambda_client = boto3.client("lambda", region_name=region_name)
+
+        self.api_routes = api_routes or []
 
         if not self.api_routes:
             raise ValueError("At least one route must be provided.")
@@ -36,18 +37,16 @@ class APIGatewayManager:
         if not self.checked_routes:
             raise ValueError("At least one valid route must be provided.")
 
-        logger.info(
-            f"Using AWS account: {self.account_id}, region: {self.region_name}, stage: {self.stage_name}"
-        )
+        logger.info(f"Using AWS account: {self.account_id}, region: {self.region_name}")
 
     def _validate_routes(self) -> list[dict[str, str]]:
-        checked_routes = []
+        checked_routes: list[dict[str, str]] = []
         for route in self.api_routes:
             method = route.get("method")
-            path = route["path"]
-            lambda_ref = route["lambda_ref"]
+            path = route.get("path")
+            lambda_ref = route.get("lambda") or route.get("lambda_ref")
             if not method or not path or not lambda_ref:
-                logger.error("Method, path, and lambda_ref must be provided.")
+                logger.error("Method, path, and lambda must be provided.")
                 continue
 
             if method not in {
@@ -63,9 +62,9 @@ class APIGatewayManager:
                     f"WARNING: Unusual HTTP method '{method}'. Proceeding anyway."
                 )
             checked_routes.append(route)
-        if len(self.checked_routes) != len(self.api_routes):
+        if len(checked_routes) != len(self.api_routes):
             logger.warning(
-                f"Only {len(self.checked_routes)}/{len(self.api_routes)} routes were validated."
+                f"Only {len(checked_routes)}/{len(self.api_routes)} routes were validated."
             )
 
         return checked_routes
@@ -80,24 +79,22 @@ class APIGatewayManager:
         resp = self.api_client.create_api(Name=self.api_name, ProtocolType="HTTP")
         return dict(resp)
 
-    def _ensure_stage(self, api_id: str, auto_deploy: bool = True) -> dict[str, Any]:
+    def _ensure_stage(
+        self, api_id: str, stage_name: str, auto_deploy: bool = True
+    ) -> dict[str, Any]:
         try:
-            existing = self.api_client.get_stage(
-                ApiId=api_id, StageName=self.stage_name
-            )
+            existing = self.api_client.get_stage(ApiId=api_id, StageName=stage_name)
             if existing.get("AutoDeploy") != auto_deploy:
                 self.api_client.update_stage(
-                    ApiId=api_id, StageName=self.stage_name, AutoDeploy=auto_deploy
+                    ApiId=api_id, StageName=stage_name, AutoDeploy=auto_deploy
                 )
-                existing = self.api_client.get_stage(
-                    ApiId=api_id, StageName=self.stage_name
-                )
+                existing = self.api_client.get_stage(ApiId=api_id, StageName=stage_name)
             return dict(existing)
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "NotFoundException":
                 return dict(
                     self.api_client.create_stage(
-                        ApiId=api_id, StageName=self.stage_name, AutoDeploy=auto_deploy
+                        ApiId=api_id, StageName=stage_name, AutoDeploy=auto_deploy
                     )
                 )
             raise
@@ -209,27 +206,33 @@ class APIGatewayManager:
             if e.response.get("Error", {}).get("Code") != "ResourceConflictException":
                 raise
 
-    def deploy(self) -> dict[str, str | list[dict[str, str]]]:
+    def deploy(self) -> dict[str, Any]:
         # 1) Ensure API
         api_info = self._ensure_http_api()
         api_id = api_info["ApiId"]
         logger.info(f"API: {api_info['Name']}  (id: {api_id})")
 
-        # 2) Ensure stage
-        stage = self._ensure_stage(api_id)
-        logger.info(
-            f"Stage: {stage['StageName']} (AutoDeploy={stage.get('AutoDeploy')})"
-        )
-
-        # 3) Ensure integrations/routes/permissions for each route
+        # 2) Ensure integrations/routes/permissions for each route
         ensured: list[dict[str, Any]] = []
+        stages_created: set[str] = set()
+
         for r in self.checked_routes:
-            lambda_function = r.get("lambda")
+            lambda_function = r.get("lambda") or r.get("lambda_ref")
             method = r.get("method")
             path = r.get("path")
+            stage_name = r.get("stage", "prod")
+
             if not lambda_function or not method or not path:
                 logger.error("Lambda function, method, and path must be provided.")
                 continue
+
+            # Ensure stage for this route if not already created
+            if stage_name not in stages_created:
+                stage = self._ensure_stage(api_id, stage_name)
+                logger.info(
+                    f"Stage: {stage['StageName']} (AutoDeploy={stage.get('AutoDeploy')})"
+                )
+                stages_created.add(stage_name)
 
             lambda_arn = self._get_lambda_arn(lambda_function)
             integration_id = self._ensure_integration(api_id, lambda_arn)
@@ -238,20 +241,81 @@ class APIGatewayManager:
             ensured.append({
                 "method": r.get("method"),
                 "path": r.get("path"),
+                "stage": stage_name,
                 "lambda_arn": lambda_arn,
             })
             logger.info(
                 f"Route ensured: {route['RouteKey']} → integrations/{integration_id}"
             )
 
-        base_url = f"https://{api_id}.execute-api.{self.region_name}.amazonaws.com/{self.stage_name}"
-        logger.info("\nInvoke URLs:")
-        for r in self.checked_routes:
-            logger.info(f"  {r.get('method')} {base_url}{r.get('path')}")
+        # Generate URLs for each stage
+        logger.info("Invoke URLs:")
+        for stage_name in stages_created:
+            base_url = f"https://{api_id}.execute-api.{self.region_name}.amazonaws.com/{stage_name}"
+            logger.info(f"Stage: {stage_name}")
+            for r in self.checked_routes:
+                if r.get("stage", "prod") == stage_name:
+                    logger.info(f"  {r.get('method')} {base_url}{r.get('path')}")
 
         return {
             "api_id": api_id,
-            "stage_name": self.stage_name,
-            "base_url": base_url,
+            "stages": list(stages_created),
             "routes": ensured,
         }
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command line arguments for API Gateway deployment.
+
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="AWS API Gateway Manager",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--config-file",
+        "-c",
+        required=True,
+        help="Path to JSON configuration file",
+    )
+
+    return parser.parse_args()
+
+
+def main() -> None:
+    """
+    Main function to deploy API Gateway using configuration file.
+    """
+    try:
+        # Parse command line arguments
+        args = parse_args()
+
+        # Load configuration from file
+        config = get_config(args.config_file)
+
+        # Create APIGatewayManager with configuration
+        manager = APIGatewayManager(
+            api_name=config.function_name,
+            api_routes=config.apigateway_routes,
+            region_name=config.region_name,
+            account_id=config.account_id,
+        )
+
+        # Deploy the API Gateway
+        result = manager.deploy()
+
+        logger.info("API Gateway deployed successfully!")
+        logger.info(f"API ID: {result['api_id']}")
+        logger.info(f"Routes configured: {len(result['routes'])}")
+
+    except Exception as e:
+        logger.error(f"Failed to deploy API Gateway: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

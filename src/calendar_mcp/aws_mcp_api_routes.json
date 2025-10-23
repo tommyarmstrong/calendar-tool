@@ -1,9 +1,0 @@
-[
-    { "method": "GET", "path": "/.well-known/mcp/manifest", "lambda": "calendar_mcp" },
-    { "method": "GET", "path": "/mcp/schemas", "lambda": "calendar_mcp" },
-    { "method": "GET", "path": "/mcp/tools", "lambda": "calendar_mcp" },
-    { "method": "POST", "path": "/mcp/tools/call", "lambda": "calendar_mcp" },
-    { "method": "GET", "path": "/oauth/start", "lambda": "calendar_mcp" },
-    { "method": "GET", "path": "/oauth/callback", "lambda": "calendar_mcp" },
-    { "method": "GET", "path": "/healthz", "lambda": "calendar_mcp" }
-]

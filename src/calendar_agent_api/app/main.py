@@ -70,6 +70,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
             logger.error(f"Timestamp: {headers.get('x-slack-request-timestamp', '')}")
             logger.error(f"Slack signature: {headers.get('x-slack-signature', '')}")
             return create_slack_response()
+        logger.info("Slack signature verified")
 
     # 3. Validate Client requests
     if headers.get("x-client-id") == X_CLIENT_ID:
@@ -80,10 +81,10 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         # Update the status in the cache
         status_update(request_id=request_id, status_code="202", status="processing")
 
-    else:
-        return create_response(400, "Unrecognized client request")
-
     # 4. Invoke the lambda function to process the message in a seperate thread
+    logger.debug("Invoking Calendar Agent Lambda")
+    logger.debug(f"Agent data: {agent_data}")
+    logger.debug(f"Function name: {INVOKE_LAMBDA_NAME}")
     try:
         invoke_lambda(agent_data, function_name=INVOKE_LAMBDA_NAME)
         logger.debug("Calendar Agent Invoked")

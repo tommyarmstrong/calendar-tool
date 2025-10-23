@@ -7,8 +7,6 @@
   "timeout": 60,
   "memory_size": 128,
   "role_name": "calendarAgentAPIRole",
-  "policy_name": "CalendarAgentAPIPolicy",
-  "policy_file": "agent_api_iam_policy.json",
   "zip_filename": "calendar_agent_api_lambda.zip",
   "code_files": [
     "__init__.py",
@@ -37,14 +35,21 @@
   ],
   "test_event_data": {},
   "parameters": {
-        "/parameter/apps/prod/calendar/slack_pa_integration": "true",
-        "/parameter/apps/prod/infra/redis_host": "localhost",
-        "/parameter/apps/prod/infra/redis_port": 999
+        "parameter/apps/prod/infra/redis_host": "localhost",
+        "parameter/apps/prod/infra/redis_port": 999
   },
-    "secrets": {
-        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
-        "/parameter/apps/prod/secrets/redis_password": "XXX",
-        "/parameter/apps/prod/secrets/slack_pa_signing_secret": "XXX"
+  "secrets": {
+      "parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
+      "parameter/apps/prod/secrets/redis_password": "XXX",
+      "parameter/apps/prod/secrets/slack_pa_signing_secret": "XXX"
+  },
+  "apigateway_routes": [
+    {
+      "method": "POST",
+      "stage": "prod",
+      "path": "/agents/calendar",
+      "lambda": "calendar_agent_api"
     }
+  ]
 
 }

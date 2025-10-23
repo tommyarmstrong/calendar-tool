@@ -116,7 +116,7 @@ def _get_parameter_store_config() -> dict[str, Any]:
         _get_param_with_default(calendar_params, "google_client_id", ""), "google_client_id"
     )
     google_redirect_uri = _get_param_with_default(
-        calendar_params, "google_redirect_uri", "http://localhost:8000/oauth/callback"
+        calendar_params, "google_redirect_uri", f"{calendar_mcp_url.rstrip('/')}/oauth/callback"
     )
 
     # Handle google_scopes - use parameter store value or fallback to default
