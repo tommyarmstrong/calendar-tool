@@ -3,6 +3,7 @@ import json
 from typing import Any
 
 from app.config import (
+    INVOKE_LAMBDA_FILE,
     INVOKE_LAMBDA_NAME,
     REDIS_HOST,
     REDIS_PASSWORD,
@@ -85,8 +86,13 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     logger.debug("Invoking Calendar Agent Lambda")
     logger.debug(f"Agent data: {agent_data}")
     logger.debug(f"Function name: {INVOKE_LAMBDA_NAME}")
+    logger.debug(f"Handler file: {INVOKE_LAMBDA_FILE} (Unused in AWS deployment)")
     try:
-        invoke_lambda(agent_data, function_name=INVOKE_LAMBDA_NAME)
+        invoke_lambda(
+            agent_data,
+            function_name=INVOKE_LAMBDA_NAME,
+            lambda_handler_filename=INVOKE_LAMBDA_FILE,  # <-- Unused in AWS deployment
+        )
         logger.debug("Calendar Agent Invoked")
     except Exception as e:
         logger.error(f"Error invoking lambda function: {e}")

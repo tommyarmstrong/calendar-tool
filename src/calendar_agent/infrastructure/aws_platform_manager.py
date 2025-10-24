@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-# platform_helpers.py
+# aws_platform_helpers.py
 """
 Helper functions for operations on the AWS platform.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Iterable, Iterator
-from typing import Any
 
 import boto3
 
@@ -106,34 +104,3 @@ def create_logger(log_level: str = "INFO", logger_name: str = __name__) -> loggi
         logger.addHandler(handler)
 
     return logger
-
-
-""" AWS Lambda functions """
-
-
-def invoke_lambda(
-    event: dict[str, Any], function_name: str, lambda_handler: str = "lambda_handler"
-) -> None:
-    """
-    Asynchronously invoke an AWS Lambda function by name.
-
-    This function uses boto3 to trigger another Lambda function (fire-and-forget),
-    passing in the given event dictionary. It returns immediately without waiting
-    for the target function to complete.
-
-    Args:
-        event (Dict[str, Any]): The event payload to send to the target Lambda function.
-        function_name (str): The name of the Lambda function to invoke (e.g., 'podcast_chat').
-        lambda_handler (str, optional): The handler function name in the target Lambda.
-        Not used by the API but included for compatibility with local invocations.
-
-    Returns:
-        None
-    """
-    lambda_client = boto3.client("lambda")
-
-    lambda_client.invoke(
-        FunctionName=function_name,
-        InvocationType="Event",  # async / fire-and-forget
-        Payload=json.dumps(event).encode("utf-8"),
-    )

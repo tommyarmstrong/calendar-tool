@@ -503,6 +503,7 @@ def copy_server_certificates_to_mcp(cert_dir: Path, script_dir: Path) -> bool:
 
         # Define destination directory
         mcp_dir = script_dir.parent / "calendar_mcp"
+        certs_dir = mcp_dir / "certificates"
 
         # Check if source files exist
         if not server_crt.exists():
@@ -515,17 +516,18 @@ def copy_server_certificates_to_mcp(cert_dir: Path, script_dir: Path) -> bool:
             logger.error(f"CA certificate not found: {ca_crt}")
             return False
 
-        # Create destination directory if it doesn't exist
+        # Create destination directories if they don't exist
         mcp_dir.mkdir(exist_ok=True)
+        certs_dir.mkdir(exist_ok=True)
 
         # Copy files
         import shutil
 
-        shutil.copy2(server_crt, mcp_dir / "server.crt")
-        shutil.copy2(server_key, mcp_dir / "server.key")
-        shutil.copy2(ca_crt, mcp_dir / "ca.crt")
+        shutil.copy2(server_crt, certs_dir / "server.crt")
+        shutil.copy2(server_key, certs_dir / "server.key")
+        shutil.copy2(ca_crt, certs_dir / "ca.crt")
 
-        logger.info(f"Copied server certificates to: {mcp_dir}")
+        logger.info(f"Copied server certificates to: {certs_dir}")
         logger.info("  - server.crt (server certificate)")
         logger.info("  - server.key (server private key)")
         logger.info("  - ca.crt (CA certificate)")

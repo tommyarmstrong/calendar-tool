@@ -119,8 +119,8 @@ def temporarily_change_dir(path: Path) -> Iterator[None]:
 def invoke_lambda(
     event: dict[str, Any],
     function_name: str,
-    lambda_handler: str = "agent_lambda_handler",
-    lambda_handler_filename: str = "calendar_agent_handler.py",
+    lambda_handler: str = "lambda_handler",
+    lambda_handler_filename: str = "handler.py",
 ) -> None:
     """
     Simulate an AWS Lambda function invocation by dynamically importing the specified

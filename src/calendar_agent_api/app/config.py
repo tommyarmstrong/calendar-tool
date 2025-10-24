@@ -18,12 +18,15 @@ REDIS_HOST = infra_params["redis_host"]
 REDIS_PORT = infra_params["redis_port"]
 
 INVOKE_LAMBDA_NAME = "calendar_agent"
+INVOKE_LAMBDA_FILE = "agent_handler.py"
+
 X_CLIENT_ID = "dev-test-client-v1"
 
 # Validate configuration values
 for k, v in {
     "CALENDAR_BEARER_TOKEN": CALENDAR_BEARER_TOKEN,
     "INVOKE_LAMBDA_NAME": INVOKE_LAMBDA_NAME,
+    "INVOKE_LAMBDA_FILE": INVOKE_LAMBDA_FILE,
     "REDIS_HOST": REDIS_HOST,
     "REDIS_PORT": REDIS_PORT,
     "REDIS_PASSWORD": REDIS_PASSWORD,

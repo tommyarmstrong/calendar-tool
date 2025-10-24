@@ -2,7 +2,7 @@
 # uvicorn fast_api_server:app --reload --port 9000
 from typing import Any
 
-from calendar_agent_api_handler import lambda_handler
+from agent_api_handler import lambda_handler
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 

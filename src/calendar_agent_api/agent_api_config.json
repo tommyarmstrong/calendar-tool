@@ -1,6 +1,6 @@
 {
   "function_name": "calendar_agent_api",
-  "handler_name": "calendar_agent_api_handler.lambda_handler",
+  "handler_name": "agent_api_handler.lambda_handler",
   "region_name": "us-east-1",
   "runtime": "python3.13",
   "architecture": "x86_64",

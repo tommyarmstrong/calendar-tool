@@ -18,8 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
-
-from handler import lambda_handler  # your AWS-style handler
+from mcp_handler import lambda_handler
 
 
 def _lambda_to_fastapi_response(lambda_resp: dict[str, Any]) -> Response:

@@ -1,3 +1,0 @@
-[
-    { "method": "POST", "path": "/agents/calendar", "lambda": "calendar_agent" }
-]

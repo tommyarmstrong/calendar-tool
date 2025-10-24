@@ -1,13 +1,12 @@
 {
   "function_name": "calendar_mcp",
-  "handler_name": "handler.lambda_handler",
+  "handler_name": "mcp_handler.lambda_handler",
   "region_name": "us-east-1",
   "runtime": "python3.13",
   "timeout": 45,
   "memory_size": 128,
   "role_name": "calendarMCPRole",
   "policy_name": "CalendarMCPPolicy",
-  "policy_file": "aws_calendar_mcp_iam_policy.json",
   "zip_filename": "mcp_calendar_lambda.zip",
   "code_files": [
     "__init__.py",
