@@ -2,6 +2,8 @@ import uuid
 
 from infrastructure.platform_manager import get_parameters
 
+# Get secrets from Paramter Store (encrypted)
+
 secrets = get_parameters(
     ["calendar_bearer_token", "slack_pa_signing_secret", "redis_password"],
     "/apps/prod/calendar/secrets/",
@@ -12,15 +14,31 @@ CALENDAR_BEARER_TOKEN = secrets["calendar_bearer_token"]
 SLACK_PA_SIGNING_SECRET = secrets["slack_pa_signing_secret"]
 REDIS_PASSWORD = secrets["redis_password"]
 
-parameters = get_parameters(["redis_host", "redis_port"], "/apps/prod/calendar/")
+# Get parameters from Paramter Store (not encrypted)
+
+parameters = get_parameters(
+    [
+        "redis_host",
+        "redis_port",
+        "slack_pa_allowed_bot",
+        "slack_pa_allowed_channels",
+        "slack_pa_allowed_users",
+    ],
+    "/apps/prod/calendar/",
+)
 
 REDIS_HOST = parameters["redis_host"]
 REDIS_PORT = parameters["redis_port"]
+SLACK_PA_ALLOWED_BOT = parameters["slack_pa_allowed_bot"]
+SLACK_PA_ALLOWED_CHANNELS = parameters["slack_pa_allowed_channels"]
+SLACK_PA_ALLOWED_USERS = parameters["slack_pa_allowed_users"]
+
 
 INVOKE_LAMBDA_NAME = "calendar_agent"
-INVOKE_LAMBDA_FILE = "agent_handler.py"
+INVOKE_LAMBDA_FILE = "agent_handler.py"  # <-- Unused in AWS deployment; required for FastAPI
 
 X_CLIENT_ID = "dev-test-client-v1"
+
 
 # Validate configuration values
 for k, v in {

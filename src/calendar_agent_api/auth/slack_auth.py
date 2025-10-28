@@ -1,4 +1,11 @@
-from app.config import SLACK_PA_SIGNING_SECRET
+from typing import Any
+
+from app.config import (
+    SLACK_PA_ALLOWED_BOT,
+    SLACK_PA_ALLOWED_CHANNELS,
+    SLACK_PA_ALLOWED_USERS,
+    SLACK_PA_SIGNING_SECRET,
+)
 from slack_sdk.signature import SignatureVerifier
 
 
@@ -17,8 +24,26 @@ def verify_slack_signature(body_raw: str | bytes, headers: dict[str, str]) -> bo
         return True
     return False
 
-
-def authorize_slack_request() -> bool:
     # TODO: The Slack Authorization (User ID, Channel ID and Bot ID) should be happening here
     # Do not invoke the Agent if it fails
-    return True
+
+
+def authorize_slack_request(data: dict[str, Any]) -> list[str]:
+    """Validate the Slack user."""
+    user_id = data.get("user_id")
+    channel_id = data.get("channel_id")
+    bot_user_id = data.get("bot_user_id")
+
+    authorization_issues = []
+    if user_id != SLACK_PA_ALLOWED_USERS:
+        authorization_issues.append(f"Slack user is not authorized: {user_id} ")
+
+    if channel_id != SLACK_PA_ALLOWED_CHANNELS:
+        authorization_issues.append(f"Slack channel is not authorized: {channel_id} ")
+
+    if bot_user_id != SLACK_PA_ALLOWED_BOT:
+        authorization_issues.append(f"Slack bot is not authorized: {bot_user_id} ")
+
+    if authorization_issues:
+        return authorization_issues
+    return []

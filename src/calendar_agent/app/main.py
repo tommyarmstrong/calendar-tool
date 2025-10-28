@@ -10,7 +10,6 @@ from services.cache_service import status_update
 from services.llm_service import plan_mcp_call
 from services.mcp_client_service import call_mcp
 from services.renderer_service import render_mcp_result
-from services.validate_slack_user import validate_slack_user
 
 logger = create_logger(logger_name="calendar-agent", log_level="INFO")
 logger.info("Starting Calendar Agent")
@@ -42,14 +41,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         logger.error(e)
         return create_response(status_code=400, body=str(e), content_type="text/plain")
-
-    # If the post came from Slack, check if the user is allowed to use the agent
-    if data.get("slack_signature"):
-        try:
-            validate_slack_user(data)
-        except ValueError as e:
-            logger.error(e)
-            return create_response(status_code=400, body=str(e), content_type="text/plain")
 
     # Plan the MCP call and log the details
     try:

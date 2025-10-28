@@ -13,7 +13,7 @@ from app.config import (
 )
 from app.process_event import process_event_data
 from auth.client_auth import authorize_client_request
-from auth.slack_auth import verify_slack_signature
+from auth.slack_auth import authorize_slack_request, verify_slack_signature
 from infrastructure.platform_manager import create_logger, invoke_lambda
 from services.cache_service import RedisCache, status_update
 
@@ -61,8 +61,9 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         logger.info("Returning Slack challenge")
         return create_response(200, json.dumps(body_json), "application/json")
 
-    # 2. Verify the Slack signature
+    # 2a. Verify the Slack signature
     if headers.get("x-slack-signature"):
+        logger.info("Slack request detected")
         body_raw = event.get("body", "")
         if not verify_slack_signature(body_raw, headers):
             # Return 200 to Slack to acknowledge receipt, but log the error
@@ -73,16 +74,29 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
             return create_slack_response()
         logger.info("Slack signature verified")
 
-    # TODO: The Slack Authorization (User ID, Channel ID and Bot ID) should be happening here.
-    # Call the function auth.authorize_client_request()
-    # Do not invoke the Agent if it fails
+        # 2b. Authorize the Slack request
+        authorization_issues = authorize_slack_request(agent_data)
+        if authorization_issues:
+            logger.error("Invalid Slack request")
+            for issue in authorization_issues:
+                logger.error(issue)
+            return create_response(400, "Invalid Slack request")
+        if not authorization_issues:
+            logger.info("Slack request authorized")
 
     # 3. Validate Client requests
     if headers.get("x-client-id") == X_CLIENT_ID:
-        # Validate the client request
-        if not authorize_client_request(headers):
-            return create_response(400, "Invalid client request")
+        logger.info("Client request detected")
 
+        # Validate the client request
+        authorization_issues = authorize_client_request(headers)
+        if authorization_issues:
+            logger.error("Invalid client request")
+            for issue in authorization_issues:
+                logger.error(issue)
+            return create_response(400, "Invalid client request")
+        if not authorization_issues:
+            logger.info("Client request authorized")
         # Update the status in the cache
         status_update(request_id=request_id, status_code="202", status="processing")
 
