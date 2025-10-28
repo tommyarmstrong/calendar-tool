@@ -85,9 +85,14 @@ class IAMManager:
         self.config = config
         self.policy_arn: str | None = None
         self.auto_policy_arn: str | None = None
+        self.invoke_lambda_policy_arn: str | None = None
         self.has_custom_policy = policy_name is not None and policy_file is not None
         self.has_auto_policy = config is not None and (
             hasattr(config, "parameters") and config.parameters
+        )
+        self.has_invoke_lambda_policy = config is not None and (
+            hasattr(config, "invoke_lambda_permissions")
+            and config.invoke_lambda_permissions
         )
 
         self.iam = boto3.client("iam")
@@ -106,32 +111,56 @@ class IAMManager:
 
         # Handle all parameters (both regular and secrets) in a single statement
         has_secrets = False
-        if hasattr(self.config, "parameters") and self.config.parameters:
-            parameter_paths = []
+        parameter_paths = []
+        path_prefixes = set()
 
+        if hasattr(self.config, "parameters") and self.config.parameters:
             for param in self.config.parameters:
                 if isinstance(param, dict) and "Name" in param:
                     name = param["Name"]
                     if isinstance(name, str):
                         parameter_paths.append(name)
+                        # Extract path prefix for GetParametersByPath
+                        path_parts = name.split("/")
+                        if len(path_parts) >= 2:
+                            path_prefixes.add("/".join(path_parts[:-1]) + "/*")
                         # Check if this is a secret
                         if param.get("Type") == "SecureString":
                             has_secrets = True
 
             if parameter_paths:
+                # Statement 1: Allow reading specific parameters
                 statements.append({
-                    "Sid": "AllowReadParamsUnderPath",
+                    "Sid": "AllowReadSpecificParameters",
                     "Effect": "Allow",
                     "Action": [
                         "ssm:GetParameter",
                         "ssm:GetParameters",
-                        "ssm:GetParametersByPath",
-                        "ssm:DescribeParameters",
                     ],
                     "Resource": [
-                        f"arn:aws:ssm:{self.config.region_name}:{self.account_id}:{path}"
+                        f"arn:aws:ssm:{self.config.region_name}:{self.account_id}:parameter/{path}"
                         for path in parameter_paths
                     ],
+                })
+
+                # Statement 2: Allow reading by path if needed
+                if path_prefixes:
+                    statements.append({
+                        "Sid": "AllowReadByPathIfNeeded",
+                        "Effect": "Allow",
+                        "Action": "ssm:GetParametersByPath",
+                        "Resource": [
+                            f"arn:aws:ssm:{self.config.region_name}:{self.account_id}:parameter/{prefix}"
+                            for prefix in path_prefixes
+                        ],
+                    })
+
+                # Statement 3: DescribeParameters needs wildcard
+                statements.append({
+                    "Sid": "DescribeParametersNeedsStar",
+                    "Effect": "Allow",
+                    "Action": "ssm:DescribeParameters",
+                    "Resource": "*",
                 })
 
         # Add KMS decrypt permission if there are secrets
@@ -149,6 +178,39 @@ class IAMManager:
 
         policy_document = {"Version": "2012-10-17", "Statement": statements}
 
+        return json.dumps(policy_document, indent=2)
+
+    def _generate_invoke_lambda_policy(self) -> str:
+        """
+        Generate IAM policy document for Lambda invoke permissions.
+
+        Returns:
+            str: JSON policy document
+        """
+        if (
+            not self.config
+            or not hasattr(self.config, "invoke_lambda_permissions")
+            or not self.config.invoke_lambda_permissions
+        ):
+            return json.dumps({"Version": "2012-10-17", "Statement": []})
+
+        statements = []
+
+        for lambda_name in self.config.invoke_lambda_permissions:
+            statements.append({
+                "Sid": f"AllowInvoke{lambda_name.replace('_', '').title()}",
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": [
+                    f"arn:aws:lambda:{self.config.region_name}:{self.account_id}:function:{lambda_name}",
+                    f"arn:aws:lambda:{self.config.region_name}:{self.account_id}:function:{lambda_name}:*",
+                ],
+            })
+
+        if not statements:
+            return json.dumps({"Version": "2012-10-17", "Statement": []})
+
+        policy_document = {"Version": "2012-10-17", "Statement": statements}
         return json.dumps(policy_document, indent=2)
 
     def _find_policy_arn_by_name(self, policy_name: str | None = None) -> str | None:
@@ -283,9 +345,13 @@ class IAMManager:
             return False
 
     def deploy_policy(self) -> None:
-        if not self.has_custom_policy and not self.has_auto_policy:
+        if (
+            not self.has_custom_policy
+            and not self.has_auto_policy
+            and not self.has_invoke_lambda_policy
+        ):
             logger.info(
-                "No custom policy or auto policy configured, skipping policy deployment"
+                "No custom policy, auto policy, or invoke lambda policy configured, skipping policy deployment"
             )
             return
 
@@ -301,6 +367,14 @@ class IAMManager:
                 self._generate_auto_policy(), f"{self.role_name}AutoPolicy", "auto"
             )
 
+        # Deploy invoke lambda policy if it exists
+        if self.has_invoke_lambda_policy:
+            self._deploy_single_policy(
+                self._generate_invoke_lambda_policy(),
+                f"{self.role_name}InvokeLambdaPolicy",
+                "invoke_lambda",
+            )
+
     def _deploy_single_policy(
         self, policy_definition: str, policy_name: str, policy_type: str
     ) -> None:
@@ -310,7 +384,7 @@ class IAMManager:
         Args:
             policy_definition: The policy document JSON string
             policy_name: The name for the policy
-            policy_type: Either "custom" or "auto" to determine which ARN to store
+            policy_type: Either "custom", "auto", or "invoke_lambda" to determine which ARN to store
         """
         # Validate policy is valid JSON
         json.loads(policy_definition)
@@ -326,6 +400,8 @@ class IAMManager:
                 self.policy_arn = policy_arn
             elif policy_type == "auto":
                 self.auto_policy_arn = policy_arn
+            elif policy_type == "invoke_lambda":
+                self.invoke_lambda_policy_arn = policy_arn
 
         except ClientError as e:
             # Handle the case where the policy already exists
@@ -346,6 +422,8 @@ class IAMManager:
                     self.policy_arn = existing_arn
                 elif policy_type == "auto":
                     self.auto_policy_arn = existing_arn
+                elif policy_type == "invoke_lambda":
+                    self.invoke_lambda_policy_arn = existing_arn
             else:
                 raise ClientError(e) from e
         except Exception as e:
@@ -448,7 +526,14 @@ class IAMManager:
                 f"{self.role_name}AutoPolicy",
             ))
 
-        # 3. Basic execution role (always attach)
+        # 3. Invoke lambda policy (if exists)
+        if self.has_invoke_lambda_policy and self.invoke_lambda_policy_arn is not None:
+            policies_to_attach.append((
+                self.invoke_lambda_policy_arn,
+                f"{self.role_name}InvokeLambdaPolicy",
+            ))
+
+        # 4. Basic execution role (always attach)
         basic_exec_policy_arn = (
             "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         )

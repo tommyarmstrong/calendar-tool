@@ -15,14 +15,8 @@ secrets = get_parameters(
         "redis_password",
         "slack_pa_bot_token",
     ],
-    "/apps/prod/secrets/",
+    "/apps/prod/calendar/secrets/",
     decrypt=True,
-)
-
-# Infrastructure parameters are not encrypted in the AWS Parameter Store
-infra_params = get_parameters(
-    ["redis_host", "redis_port"],
-    "/apps/prod/infra/",
 )
 
 # Config parameters are not encrypted in the AWS Parameter Store
@@ -34,6 +28,8 @@ calendar_params = get_parameters(
         "slack_pa_allowed_users",
         "slack_pa_allowed_channels",
         "slack_pa_allowed_bot",
+        "redis_host",
+        "redis_port",
     ],
     "/apps/prod/calendar/",
 )
@@ -46,8 +42,8 @@ REDIS_PASSWORD = secrets["redis_password"]
 
 CALENDAR_MCP_CA_CERT_B64 = calendar_params["calendar_mcp_ca_cert_b64"]
 CALENDAR_MCP_URL = calendar_params["calendar_mcp_url"]
-REDIS_HOST = infra_params["redis_host"]
-REDIS_PORT = infra_params["redis_port"]
+REDIS_HOST = calendar_params["redis_host"]
+REDIS_PORT = calendar_params["redis_port"]
 REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}"
 SLACK_PA_ALLOWED_BOT = calendar_params["slack_pa_allowed_bot"]
 SLACK_PA_ALLOWED_CHANNELS = calendar_params["slack_pa_allowed_channels"]
@@ -61,7 +57,6 @@ CALENDAR_MCP_VERIFY_SSL = None
 # Validate configuration values
 for key, value in {
     "CALENDAR_BEARER_TOKEN": CALENDAR_BEARER_TOKEN,
-    "CALENDAR_MCP_CA_CERT_B64": CALENDAR_MCP_CA_CERT_B64,
     "CALENDAR_MCP_URL": CALENDAR_MCP_URL,
     "CALENDAR_MCP_CLIENT_P12": CALENDAR_MCP_CLIENT_P12,
     "CALENDAR_MCP_CLIENT_P12_PASSWORD": CALENDAR_MCP_CLIENT_P12_PASSWORD,

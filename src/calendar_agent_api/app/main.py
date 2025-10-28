@@ -73,6 +73,10 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
             return create_slack_response()
         logger.info("Slack signature verified")
 
+    # TODO: The Slack Authorization (User ID, Channel ID and Bot ID) should be happening here.
+    # Call the function auth.authorize_client_request()
+    # Do not invoke the Agent if it fails
+
     # 3. Validate Client requests
     if headers.get("x-client-id") == X_CLIENT_ID:
         # Validate the client request

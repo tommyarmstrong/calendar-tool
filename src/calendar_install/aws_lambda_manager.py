@@ -753,7 +753,7 @@ def parse_args() -> argparse.Namespace:
         description="Deploy Lambda, code, and layer per JSON definition."
     )
     ap.add_argument(
-        "--config_file", "-c", required=True, help="Path to JSON definition file"
+        "--config-file", "-c", required=True, help="Path to JSON definition file"
     )
     ap.add_argument(
         "--action",

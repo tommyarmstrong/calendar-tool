@@ -112,7 +112,10 @@ def create_logger(log_level: str = "INFO", logger_name: str = __name__) -> loggi
 
 
 def invoke_lambda(
-    event: dict[str, Any], function_name: str, lambda_handler: str = "lambda_handler"
+    event: dict[str, Any],
+    function_name: str,
+    lambda_handler_filename: str,  # <-- Unused in AWS. Used in FastAPI deployment
+    lambda_handler: str = "lambda_handler",
 ) -> None:
     """
     Asynchronously invoke an AWS Lambda function by name.

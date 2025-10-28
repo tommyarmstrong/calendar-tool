@@ -10,7 +10,7 @@
   "zip_filename": "calendar_agent_lambda.zip",
   "code_files": [
     "__init__.py",
-    "calendar_agent_handler.py",
+    "agent_handler.py",
     "app/__init__.py",
     "app/config.py",
     "app/logging.py",
@@ -28,6 +28,7 @@
     "services/mcp_client_service.py",
     "services/mcp_discovery_service.py",
     "services/renderer_service.py",
+    "services/response_helpers.py",
     "services/validate_slack_user.py"
   ],
   "layers": [
@@ -38,28 +39,29 @@
         "openai",
         "redis",
         "requests",
-        "requests_pkcs12"
+        "requests_pkcs12",
+        "slack_sdk"
       ]
     }
   ],
   "test_event_data": {},
   "parameters": {
-        "/parameter/apps/prod/calendar/calendar_mcp_url": "http://localhost:8000",
-        "/parameter/apps/prod/calendar/calendar_mcp_ca_cert_b64": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_integration": "false",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_users": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_channels": "XXX",
-        "/parameter/apps/prod/calendar/slack_pa_allowed_bot": "XXX",
-        "/parameter/apps/prod/infra/redis_host": "localhost",
-        "/parameter/apps/prod/infra/redis_port": 999
+        "apps/prod/calendar/calendar_mcp_url": "http://localhost:8000",
+        "apps/prod/calendar/calendar_mcp_ca_cert_b64": "XXX",
+        "apps/prod/calendar/redis_host": "localhost",
+        "apps/prod/calendar/redis_port": 999,
+        "apps/prod/calendar/slack_pa_integration": "false",
+        "apps/prod/calendar/slack_pa_allowed_users": "XXX",
+        "apps/prod/calendar/slack_pa_allowed_channels": "XXX",
+        "apps/prod/calendar/slack_pa_allowed_bot": "XXX"
   },
     "secrets": {
-        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
-        "/parameter/apps/prod/secrets/calendar_mcp_client_p12": "XXX",
-        "/parameter/apps/prod/secrets/calendar_mcp_client_p12_password": "XXX",
-        "/parameter/apps/prod/secrets/openai_api_key": "XXX",
-        "/parameter/apps/prod/secrets/redis_password": "XXX",
-        "/parameter/apps/prod/secrets/slack_pa_bot_token": "XXX"
+        "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
+        "apps/prod/calendar/secrets/calendar_mcp_client_p12": "XXX",
+        "apps/prod/calendar/secrets/calendar_mcp_client_p12_password": "XXX",
+        "apps/prod/calendar/secrets/openai_api_key": "XXX",
+        "apps/prod/calendar/secrets/redis_password": "XXX",
+        "apps/prod/calendar/secrets/slack_pa_bot_token": "XXX"
     }
 
 }

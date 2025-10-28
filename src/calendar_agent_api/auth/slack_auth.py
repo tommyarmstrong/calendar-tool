@@ -16,3 +16,9 @@ def verify_slack_signature(body_raw: str | bytes, headers: dict[str, str]) -> bo
     if verifier.is_valid_request(body_raw, headers):
         return True
     return False
+
+
+def authorize_slack_request() -> bool:
+    # TODO: The Slack Authorization (User ID, Channel ID and Bot ID) should be happening here
+    # Do not invoke the Agent if it fails
+    return True

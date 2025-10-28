@@ -67,6 +67,7 @@ class AWSConfig:
     parameters: list[dict[str, str | bool]] = field(default_factory=list)
     api_routes: list[dict[str, str]] = field(default_factory=list)
     apigateway_routes: list[dict[str, str]] = field(default_factory=list)
+    invoke_lambda_permissions: list[str] = field(default_factory=list)
 
     @classmethod
     def _get_env_value(cls, key: str, is_secret: bool = False) -> str | None:
@@ -96,12 +97,12 @@ class AWSConfig:
                 if is_secret:
                     # For secrets, log name and masked value
                     masked_value = value[:3] + "*********" if len(value) > 3 else "***"
-                    logger.info(
+                    logger.debug(
                         f"Using environment variable for secret {base_name}: {masked_value}"
                     )
                 else:
                     # For parameters, log name and full value
-                    logger.info(
+                    logger.debug(
                         f"Using environment variable for parameter {base_name}: {value}"
                     )
                 return value
@@ -117,6 +118,33 @@ class AWSConfig:
             )
 
         return None
+
+    @classmethod
+    def _process_invoke_lambda_permissions(cls, permissions: Any) -> list[str]:
+        """
+        Process invoke_lambda_permissions from config, handling both string and list cases.
+
+        Args:
+            permissions: Either a string, list of strings, or None/empty
+
+        Returns:
+            list[str]: List of lambda function names
+        """
+        if not permissions:
+            return []
+
+        if isinstance(permissions, str):
+            return [permissions]
+        elif isinstance(permissions, list):
+            result = []
+            for item in permissions:
+                if item is not None and isinstance(item, (str, int, float)):
+                    item_str = str(item).strip()
+                    if item_str:
+                        result.append(item_str)
+            return result
+        else:
+            return []
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AWSConfig":
@@ -139,12 +167,14 @@ class AWSConfig:
         if "parameters" in data and isinstance(data["parameters"], dict):
             for key, value in data["parameters"].items():
                 assert isinstance(key, str), f"Key for {key} is not a string"
+                # Strip leading slash if present
+                clean_key = key.lstrip("/")
                 # Try to get value from environment variable first
                 env_value = cls._get_env_value(key, is_secret=False)
                 final_value = env_value if env_value is not None else value
 
                 transformed_parameters.append({
-                    "Name": key.lower(),  # Always use lowercase for AWS
+                    "Name": clean_key.lower(),  # Always use lowercase for AWS
                     "Value": final_value,
                     "Type": "String",
                     "Overwrite": True,
@@ -154,12 +184,14 @@ class AWSConfig:
         if "secrets" in data and isinstance(data["secrets"], dict):
             for key, value in data["secrets"].items():
                 assert isinstance(key, str), f"Key for {key} is not a string"
+                # Strip leading slash if present
+                clean_key = key.lstrip("/")
                 # Try to get value from environment variable first
                 env_value = cls._get_env_value(key, is_secret=True)
                 final_value = env_value if env_value is not None else value
 
                 transformed_parameters.append({
-                    "Name": key.lower(),  # Always use lowercase for AWS
+                    "Name": clean_key.lower(),  # Always use lowercase for AWS
                     "Value": final_value,
                     "Type": "SecureString",
                     "Overwrite": True,
@@ -186,6 +218,9 @@ class AWSConfig:
             api_routes=data.get("api_routes", []),
             apigateway_routes=data.get("apigateway_routes", []),
             code_directory=Path(data.get("code_directory", "")),
+            invoke_lambda_permissions=cls._process_invoke_lambda_permissions(
+                data.get("invoke_lambda_permissions", [])
+            ),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -227,6 +262,8 @@ class AWSConfig:
             result["api_routes"] = self.api_routes
         if self.apigateway_routes:
             result["apigateway_routes"] = self.apigateway_routes
+        if self.invoke_lambda_permissions:
+            result["invoke_lambda_permissions"] = self.invoke_lambda_permissions
 
         return result
 

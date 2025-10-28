@@ -138,7 +138,7 @@ class ParameterManager:
         self.ssm.put_parameter(**param)
         return
 
-    def _set_aws_parameters(self) -> None:
+    def set_aws_parameters(self) -> None:
         if not self.upsert_to_aws:
             logger.info("Skipping upload to AWS SSM")
             return
@@ -162,7 +162,7 @@ class ParameterManager:
         logger.info("Processing parameters")
         export_commands = self._generate_shell_script()
         self._write_shell_script(export_commands, script_path)
-        self._set_aws_parameters()
+        self.set_aws_parameters()
         return
 
 

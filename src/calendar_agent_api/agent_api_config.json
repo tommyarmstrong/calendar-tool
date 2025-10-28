@@ -10,7 +10,7 @@
   "zip_filename": "calendar_agent_api_lambda.zip",
   "code_files": [
     "__init__.py",
-    "calendar_agent_api_handler.py",
+    "agent_api_handler.py",
     "app/__init__.py",
     "app/config.py",
     "app/main.py",
@@ -35,13 +35,13 @@
   ],
   "test_event_data": {},
   "parameters": {
-        "parameter/apps/prod/infra/redis_host": "localhost",
-        "parameter/apps/prod/infra/redis_port": 999
+        "apps/prod/calendar/redis_host": "localhost",
+        "apps/prod/calendar/redis_port": 999
   },
   "secrets": {
-      "parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
-      "parameter/apps/prod/secrets/redis_password": "XXX",
-      "parameter/apps/prod/secrets/slack_pa_signing_secret": "XXX"
+      "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
+      "apps/prod/calendar/secrets/redis_password": "XXX",
+      "apps/prod/calendar/secrets/slack_pa_signing_secret": "XXX"
   },
   "apigateway_routes": [
     {
@@ -50,6 +50,6 @@
       "path": "/agents/calendar",
       "lambda": "calendar_agent_api"
     }
-  ]
-
+  ],
+  "invoke_lambda_permissions": "calendar_agent"
 }

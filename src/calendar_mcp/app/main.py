@@ -49,9 +49,9 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     method, _, route = route_key.partition(" ")
 
     logger.info(f"Processing request: {method} {route}")
-    logger.info(f"Event: {event}")
 
     if not route:
+        logger.error("No route found")
         return create_response(404, "Not Found")
 
     # Check authentication for MCP routes (routes tht begin with "/mcp/")
@@ -65,7 +65,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
             logger.warning(f"Authentication failed: {e}")
             return create_response(401, str(e))
 
-    if method == "GET" and route == "/mcp/.well-known/mcp/manifest":
+    if method == "GET" and route == "/.well-known/mcp/manifest":
         logger.info("Returning manifest")
         return create_response(
             200, json.dumps(manifest(settings.calendar_mcp_url)), "application/json"

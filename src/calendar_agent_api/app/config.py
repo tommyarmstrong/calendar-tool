@@ -4,7 +4,7 @@ from infrastructure.platform_manager import get_parameters
 
 secrets = get_parameters(
     ["calendar_bearer_token", "slack_pa_signing_secret", "redis_password"],
-    "/apps/prod/secrets/",
+    "/apps/prod/calendar/secrets/",
     decrypt=True,
 )
 
@@ -12,10 +12,10 @@ CALENDAR_BEARER_TOKEN = secrets["calendar_bearer_token"]
 SLACK_PA_SIGNING_SECRET = secrets["slack_pa_signing_secret"]
 REDIS_PASSWORD = secrets["redis_password"]
 
-infra_params = get_parameters(["redis_host", "redis_port"], "/apps/prod/infra/")
+parameters = get_parameters(["redis_host", "redis_port"], "/apps/prod/calendar/")
 
-REDIS_HOST = infra_params["redis_host"]
-REDIS_PORT = infra_params["redis_port"]
+REDIS_HOST = parameters["redis_host"]
+REDIS_PORT = parameters["redis_port"]
 
 INVOKE_LAMBDA_NAME = "calendar_agent"
 INVOKE_LAMBDA_FILE = "agent_handler.py"

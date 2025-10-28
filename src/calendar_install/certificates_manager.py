@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
+import boto3
 from aws_config_manager import create_logger
 from cryptography.fernet import Fernet
 
@@ -487,6 +488,8 @@ def create_p12_bundle(
 def copy_server_certificates_to_mcp(cert_dir: Path, script_dir: Path) -> bool:
     """
     Copy server certificates to the calendar_mcp directory for local development.
+    These certificates are not copied into the AWS MCP deployment, they are used for
+    mutual TLS testing on localhost for local development.
 
     Args:
         cert_dir: Directory containing certificates
@@ -557,59 +560,6 @@ def cleanup_intermediate_files(cert_dir: Path) -> None:
                 logger.warning(f"Failed to remove {file_path}: {e}")
 
 
-def parse_arguments() -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Generate certificates for mTLS authentication",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s                                    # Generate with all defaults
-  %(prog)s --ca-name MyCA --client-name my-client
-  %(prog)s --no-copy-to-mcp --cleanup        # Don't copy to MCP, cleanup files
-  %(prog)s --p12-password mypassword          # Use custom P12 password
-        """,
-    )
-    parser.add_argument(
-        "--ca-name",
-        default="CalendarMCPDevRootCA",
-        help="Common name for CA certificate (default: CalendarMCPDevRootCA)",
-    )
-    parser.add_argument(
-        "--client-name",
-        default="agent-123",
-        help="Common name for client certificate (default: agent-123)",
-    )
-    parser.add_argument(
-        "--server-name",
-        default="localhost",
-        help="Common name for server certificate (default: localhost)",
-    )
-    parser.add_argument(
-        "--p12-password",
-        default=None,
-        help="Password for P12 bundle (default: auto-generated random password)",
-    )
-    parser.add_argument(
-        "--cleanup",
-        action="store_true",
-        default=False,
-        help="Clean up intermediate files after generation (default: False)",
-    )
-    parser.add_argument(
-        "--copy-to-mcp",
-        action="store_true",
-        help="Copy server certificates to calendar_mcp directory (default: True)",
-    )
-    parser.add_argument(
-        "--no-copy-to-mcp",
-        action="store_true",
-        help="Do not copy server certificates to calendar_mcp directory (overrides --copy-to-mcp)",
-    )
-
-    return parser.parse_args()
-
-
 class CertificateManager:
     """Manages certificate generation and deployment."""
 
@@ -640,6 +590,61 @@ class CertificateManager:
         else:
             self.p12_password = self.secrets_dict["CALENDAR_MCP_CLIENT_P12_PASSWORD"]
             logger.info(f"Generated P12 password: {self.p12_password}")
+
+    def update_mtls_truststore(
+        self, domain: str, bucket: str, key: str, file_path: str
+    ) -> None:
+        """
+        Update mTLS truststore by uploading a new truststore file to S3 and updating API Gateway.
+
+        Args:
+            domain: Domain name for the API Gateway custom domain
+            bucket: S3 bucket name
+            key: S3 key path for the truststore
+            file_path: Local file path to the truststore file
+        """
+        apigw = boto3.client("apigatewayv2")
+        s3 = boto3.client("s3")
+
+        # Upload the truststore file to S3
+        try:
+            with open(file_path, "rb") as f:
+                response = s3.put_object(
+                    Bucket=bucket,
+                    Key=key,
+                    Body=f.read(),
+                    ContentType="application/x-pem-file",
+                    ServerSideEncryption="AES256",
+                )
+            logger.info(f"Uploaded truststore to s3://{bucket}/{key}")
+            logger.info(f"ETag: {response.get('ETag', 'N/A')}")
+            logger.info(f"Version ID: {response.get('VersionId', 'N/A')}")
+        except Exception as e:
+            logger.error(f"Failed to upload truststore to S3: {e}")
+            raise
+
+        # Get the latest version ID
+        try:
+            versions = s3.list_object_versions(Bucket=bucket, Prefix=key)["Versions"]
+            latest = sorted(versions, key=lambda v: v["LastModified"], reverse=True)[0]
+            version_id = latest["VersionId"]
+        except Exception as e:
+            logger.error(f"Failed to get latest version ID: {e}")
+            raise
+
+        # Update API Gateway domain with new truststore version
+        try:
+            apigw.update_domain_name(
+                DomainName=domain,
+                MutualTlsAuthentication={
+                    "TruststoreUri": f"s3://{bucket}/{key}",
+                    "TruststoreVersion": version_id,
+                },
+            )
+            logger.info(f"Updated {domain} to truststore version {version_id}")
+        except Exception as e:
+            logger.error(f"Failed to update API Gateway domain: {e}")
+            raise
 
     def deploy(self) -> None:
         """Deploy certificates based on instance configuration."""
@@ -672,7 +677,7 @@ class CertificateManager:
             logger.error("Failed to generate server certificate. Exiting.")
             sys.exit(1)
 
-        # Step 4: Create truststore
+        # Step 4: Create truststore of the CA certificate
         logger.info("Step 4: Creating truststore...")
         truststore_success = create_truststore(self.cert_dir, ca_crt_path)
         if not truststore_success:
@@ -688,7 +693,7 @@ class CertificateManager:
             logger.error("Failed to create P12 bundle. Exiting.")
             sys.exit(1)
 
-        # Step 6: Copy to MCP directory
+        # Step 6: Copy to MCP directory for local development
         if self.copy_to_mcp:
             logger.info(
                 "Step 6: Copying server certificates to calendar_mcp directory..."
@@ -733,20 +738,115 @@ class CertificateManager:
         logger.info("./certificates/append_to_zshrc.sh && source ~/.zshrc")
 
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Generate certificates for mTLS authentication",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                                    # Generate with all defaults
+  %(prog)s --ca-name MyCA --client-name my-client
+  %(prog)s --no-copy-to-mcp --cleanup        # Don't copy to MCP, cleanup files
+  %(prog)s --p12-password mypassword          # Use custom P12 password
+  %(prog)s --action update_mtls_truststore --domain mcp.example.com --bucket my-bucket --key certs/truststore.pem --file-path certificates/truststore.pem
+        """,
+    )
+    parser.add_argument(
+        "--action",
+        choices=["deploy", "update_mtls_truststore"],
+        default="deploy",
+        help="Action to perform: deploy certificates or update mTLS truststore (default: deploy)",
+    )
+    parser.add_argument(
+        "--ca-name",
+        default="CalendarMCPDevRootCA",
+        help="Common name for CA certificate (default: CalendarMCPDevRootCA)",
+    )
+    parser.add_argument(
+        "--client-name",
+        default="agent-123",
+        help="Common name for client certificate (default: agent-123)",
+    )
+    parser.add_argument(
+        "--server-name",
+        default="localhost",
+        help="Common name for server certificate (default: localhost)",
+    )
+    parser.add_argument(
+        "--p12-password",
+        default=None,
+        help="Password for P12 bundle (default: auto-generated random password)",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        default=False,
+        help="Clean up intermediate files after generation (default: False)",
+    )
+    parser.add_argument(
+        "--copy-to-mcp",
+        action="store_true",
+        help="Copy server certificates to calendar_mcp directory (default: True)",
+    )
+    parser.add_argument(
+        "--no-copy-to-mcp",
+        action="store_true",
+        help="Do not copy server certificates to calendar_mcp directory (overrides --copy-to-mcp)",
+    )
+
+    # Arguments for update_mtls_truststore action
+    parser.add_argument(
+        "--domain",
+        help="Domain name for mTLS truststore update (required for update_mtls_truststore action)",
+    )
+    parser.add_argument(
+        "--bucket",
+        default="mcp-truststore",
+        help="S3 bucket name for truststore (default: mcp-truststore)",
+    )
+    parser.add_argument(
+        "--key",
+        default="certificates/truststore.pem",
+        help="S3 key path for truststore (default: certificates/truststore.pem)",
+    )
+    parser.add_argument(
+        "--file-path",
+        default="certificates/truststore.pem",
+        help="Local file path to truststore (default: certificates/truststore.pem)",
+    )
+
+    return parser.parse_args()
+
+
 def main() -> None:
     """Main function to generate all certificates."""
     args = parse_arguments()
 
-    # Extract arguments and pass to CertificateManager
-    cert_manager = CertificateManager(
-        ca_name=args.ca_name,
-        client_name=args.client_name,
-        server_name=args.server_name,
-        p12_password=args.p12_password,
-        copy_to_mcp=not args.no_copy_to_mcp,
-        cleanup=args.cleanup,
-    )
-    cert_manager.deploy()
+    if args.action == "deploy":
+        # Extract arguments and pass to CertificateManager
+        cert_manager = CertificateManager(
+            ca_name=args.ca_name,
+            client_name=args.client_name,
+            server_name=args.server_name,
+            p12_password=args.p12_password,
+            copy_to_mcp=not args.no_copy_to_mcp,
+            cleanup=args.cleanup,
+        )
+        cert_manager.deploy()
+
+    elif args.action == "update_mtls_truststore":
+        if not args.domain:
+            logger.error("--domain is required for update_mtls_truststore action")
+            sys.exit(1)
+
+        cert_manager = CertificateManager()
+        cert_manager.update_mtls_truststore(
+            domain=args.domain,
+            bucket=args.bucket,
+            key=args.key,
+            file_path=args.file_path,
+        )
 
 
 if __name__ == "__main__":

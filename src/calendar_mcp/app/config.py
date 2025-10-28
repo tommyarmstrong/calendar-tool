@@ -60,13 +60,8 @@ def _get_parameter_store_config() -> dict[str, Any]:
             "redis_password",
             "google_client_secret",
         ],
-        "/apps/prod/secrets",
+        "/apps/prod/calendar/secrets",
         decrypt=True,
-    )
-
-    # Get infrastructure parameters
-    infrastructure_params = get_parameters(
-        ["redis_host", "redis_port"], "/apps/prod/infra", decrypt=False
     )
 
     # Get calendar parameters
@@ -77,6 +72,8 @@ def _get_parameter_store_config() -> dict[str, Any]:
             "google_client_id",
             "google_redirect_uri",
             "google_scopes",
+            "redis_host",
+            "redis_port",
         ],
         "/apps/prod/calendar",
         decrypt=False,
@@ -97,26 +94,24 @@ def _get_parameter_store_config() -> dict[str, Any]:
         _get_param_with_default(secrets, "google_client_secret", ""), "google_client_secret"
     )
 
-    # Validate and extract infrastructure parameters
-    redis_host = _validate_required_param(
-        _get_param_with_default(infrastructure_params, "redis_host", ""), "redis_host"
-    )
-    redis_port = _validate_required_param(
-        _get_param_with_default(infrastructure_params, "redis_port", ""), "redis_port"
-    )
-
     # Validate and extract calendar parameters
     calendar_mcp_default_tz = _get_param_with_default(
         calendar_params, "calendar_mcp_default_tz", "Europe/London"
     )
-    calendar_mcp_url = _get_param_with_default(
-        calendar_params, "calendar_mcp_url", "http://localhost:8000"
+    calendar_mcp_url = _validate_required_param(
+        _get_param_with_default(calendar_params, "calendar_mcp_url", ""), "calendar_mcp_url"
+    )
+    google_redirect_uri = _validate_required_param(
+        _get_param_with_default(calendar_params, "google_redirect_uri", ""), "google_redirect_uri"
     )
     google_client_id = _validate_required_param(
         _get_param_with_default(calendar_params, "google_client_id", ""), "google_client_id"
     )
-    google_redirect_uri = _get_param_with_default(
-        calendar_params, "google_redirect_uri", f"{calendar_mcp_url.rstrip('/')}/oauth/callback"
+    redis_host = _validate_required_param(
+        _get_param_with_default(calendar_params, "redis_host", ""), "redis_host"
+    )
+    redis_port = _validate_required_param(
+        _get_param_with_default(calendar_params, "redis_port", ""), "redis_port"
     )
 
     # Handle google_scopes - use parameter store value or fallback to default

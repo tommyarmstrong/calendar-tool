@@ -32,7 +32,7 @@ def requests_verify_setting() -> bool | str:
     Raises:
         No exceptions are raised by this function
     """
-    # For HTTPS with self-signed certificates, disable verification for localhost
+    # For HTTPS with self-signed certificates on local host
     if (
         CALENDAR_MCP_CA_CERT_B64
         and CALENDAR_MCP_CA_CERT_B64 != ""

@@ -71,6 +71,7 @@ Take the following steps to enable the Calendar MCP to authenticate to the Googl
 GOOGLE_CLIENT_SECRET = ***************
 GOOGLE_CLIENT_ID = ***************
 ```
+The Google client ID is a "pseudo-secret" really. We store it encrypted.
 
 - **Optional environment variables** can be set for the redirect URI and the scopes, although these will be read from the default JSON config for the MCP and are also defaulted.
 ```bash
@@ -119,7 +120,9 @@ To export environment variables into the shell execute:
 source src/calendar_intall/certificates/set_env.sh
 ```
 
-Delete the files `src/calendar_intall/certificates/set_env.sh` and `src/calendar_intall/certificates/append_to_zshrc.sh` so that passwords are not left on file.
+🔒 **Security Notice**
+
+Permenantly delete the files `src/calendar_intall/certificates/set_env.sh` and `src/calendar_intall/certificates/append_to_zshrc.sh` so that passwords are not left on file.
 
 
 ## 5. Local Deployment
@@ -168,12 +171,15 @@ If certificates has been configured then the MCP server can be started with mTLS
 
 ```bash
 # Start the MCP server in FastAPI with mTLS certificates
-uvicorn fast_api_server.server:app --reload --port 8000 --ssl-certfile server.crt --ssl-keyfile server.key --ssl-ca-certs ca.crt --ssl-cert-reqs 2
+uvicorn fast_api_server.server:app --reload --port 8000 \
+--ssl-certfile certificates/server.crt \
+--ssl-keyfile certificates/server.key \
+--ssl-ca-certs ccertificates/a.crt \
+--ssl-cert-reqs 2
 ```
 
-where --ssl-cert-reqs configurations are: 0=CERT_NONE, 1=CERT_OPTIONAL, 2=CERT_REQUIRED.
-
-Start the Google OAuth server. This runs on http in local environment.
+**Google OAuth Redirect Server**
+Start the Google OAuth Redirect server. This is part of the MCP module and runs on http in local environment.
 
 ```bash
 # Start the Google OAuth server in FastAPI
@@ -209,9 +215,9 @@ Skip to section XX to see how to run the test client.
 
 To deploy into AWS you will need:
 
-1. **Code** has been deployed by cloning the Github repository.
+1. **Code** is available after cloning the Github repository.
 2. **AWS CLI** configured with appropriate permissions
-3. **AWS services**:
+3. **AWS services** available:
 - API Gateway
 - CloudWatch
 - IAM
@@ -221,6 +227,7 @@ To deploy into AWS you will need:
 - Systems Manager
 4. **Pre-requisite API accounts** for Google Calendar, OpenAI and Redis should be available.
 5. **Pre-requisite configuration** including environment variables (section x), Google configuration (section x) and certificates (section x) should be complete.
+6. **Public DNS Server** to set a CNAME for the AWS Certificate Manager
 
 The AWS service requirements will likely be within the free tier or at a very low cost, please check current pricing.
 
@@ -316,6 +323,28 @@ Or run the deploy script:
 python aws_deploy.py --config-file ../calendar_agent_api/agent_api_config.json
 ```
 
+#### Update Paramaters
+
+**NEED TO COMPlETE**
+Modify `calendar_mcp_url` and `gogole_redirect_uri`with the invoke URL for the MCP API Gateway.
+
+#### Test the AWS deployment
+
+At this stage the environment should work and you can test it using the Calendar client (section 7).
+
+#### mTLS in AWS
+
+To ensure the Calendar Agent can only talk to the MCP with mTLS run the script `aws_mTLS_manager.py`.
+
+```bash
+cd calendar_install
+python aws_mTLS_manager.py --bucket <globally-unique-bucket-name> --domain <calendar-mcp.example.com>
+``
+
+Now create a CNAME in your DNS to point to the MCP domain mapping.
+
+
+
 ## 7. Connect with Calendar MCP Client
 
 ### 7.1 Local Server (FastAPI)
@@ -344,6 +373,10 @@ python clients/calendar_client.py --ngrok --token <bearer-token-value> "Am I fre
 cd src/calendar_agent_api
 python clients/calendar_client.py --ngrok --token <bearer-token-value> "Create an meeting on Wednesday morning to discuss the product release plan. Invite steve@example.com. Location is the Farringdon office but add a google meet link."
 ```
+
+### 7.2 AWS Service
+
+As above, but don't use the `--ngrok` flag and instead add in the `--url agent-api-aws-invoke-url`.
 
 ## 8. Configure Slack
 

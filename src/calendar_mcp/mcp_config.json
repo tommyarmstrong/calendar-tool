@@ -6,11 +6,10 @@
   "timeout": 45,
   "memory_size": 128,
   "role_name": "calendarMCPRole",
-  "policy_name": "CalendarMCPPolicy",
   "zip_filename": "mcp_calendar_lambda.zip",
   "code_files": [
     "__init__.py",
-    "handler.py",
+    "mcp_handler.py",
     "app/__init__.py",
     "app/config.py",
     "app/main.py",
@@ -44,22 +43,22 @@
   ],
   "test_event_data": {},
   "parameters": {
-        "/parameter/apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
-        "/parameter/apps/prod/calendar/calendar_mcp_default_tz": "Europe/London",
-        "/parameter/apps/prod/calendar/google_client_id": "XXX",
-        "/parameter/apps/prod/calendar/google_redirect_uri": "https://localhost:8001/oauth/callback",
-        "/parameter/apps/prod/calendar/google_scopes": [
+        "apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
+        "apps/prod/calendar/calendar_mcp_default_tz": "Europe/London",
+        "apps/prod/calendar/google_client_id": "XXX",
+        "apps/prod/calendar/google_redirect_uri": "https://localhost:8001/oauth/callback",
+        "apps/prod/calendar/google_scopes": [
             "https://www.googleapis.com/auth/calendar.events",
             "https://www.googleapis.com/auth/calendar.readonly"
         ],
-        "/parameter/apps/prod/infra/redis_host": "localhost",
-        "/parameter/apps/prod/infra/redis_port": 999
+        "apps/prod/calendar/redis_host": "localhost",
+        "apps/prod/calendar/redis_port": 999
   },
   "secrets": {
-        "/parameter/apps/prod/secrets/calendar_bearer_token": "XXX",
-        "/parameter/apps/prod/secrets/calendar_token_encryption_key": "XXX",
-        "/parameter/apps/prod/secrets/google_client_secret": "XXX",
-        "/parameter/apps/prod/secrets/redis_password": "XXX"
+        "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
+        "apps/prod/calendar/secrets/calendar_token_encryption_key": "XXX",
+        "apps/prod/calendar/secrets/google_client_secret": "XXX",
+        "apps/prod/calendar/secrets/redis_password": "XXX"
   },
   "apigateway_routes": [
     { "method": "GET", "path": "/.well-known/mcp/manifest", "lambda": "calendar_mcp", "stage": "prod" },
