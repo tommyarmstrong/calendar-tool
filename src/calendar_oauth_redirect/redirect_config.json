@@ -1,0 +1,57 @@
+{
+  "function_name": "calendar_oauth_redirect",
+  "handler_name": "redirect_handler.lambda_handler",
+  "region_name": "us-east-1",
+  "runtime": "python3.13",
+  "timeout": 30,
+  "memory_size": 128,
+  "role_name": "calendarRedirectRole",
+  "zip_filename": "calendar_redirect_lambda.zip",
+  "code_files": [
+    "__init__.py",
+    "redirect_handler.py",
+    "app/__init__.py",
+    "app/config.py",
+    "app/main.py",
+    "auth/__init__.py",
+    "auth/google_oauth.py",
+    "infrastructure/__init__.py",
+    "infrastructure/platform_manager.py",
+    "services/__init__.py",
+    "services/redis_services.py"
+  ],
+  "layers": [
+    {
+      "layer_name": "calendarRedirectLayer",
+      "layer_type": "custom_layer",
+      "layer_packages": [
+        "cryptography",
+        "google-auth",
+        "google-auth-oauthlib",
+        "google-api-python-client",
+        "redis"
+      ]
+    }
+  ],
+  "test_event_data": {},
+  "parameters": {
+        "apps/prod/calendar/google_redirect_uri": "https://localhost:8001/oauth/callback",
+        "apps/prod/calendar/google_scopes": [
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar.readonly"
+        ],
+        "apps/prod/calendar/redis_host": "localhost",
+        "apps/prod/calendar/redis_port": 999
+  },
+  "secrets": {
+        "apps/prod/calendar/secrets/calendar_token_encryption_key": "XXX",
+        "apps/prod/calendar/secrets/google_client_id": "XXX",
+        "apps/prod/calendar/secrets/google_client_secret": "XXX",
+        "apps/prod/calendar/secrets/redis_password": "XXX"
+  },
+  "apigateway_routes": [
+    { "method": "GET", "path": "/oauth/start", "lambda": "calendar_oauth_redirect", "stage": "prod" },
+    { "method": "GET", "path": "/oauth/callback", "lambda": "calendar_oauth_redirect", "stage": "prod" },
+    { "method": "GET", "path": "/healthz", "lambda": "calendar_oauth_redirect", "stage": "prod" }
+  ]
+}
