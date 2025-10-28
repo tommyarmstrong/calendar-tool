@@ -19,6 +19,10 @@ import boto3
 from aws_config_manager import create_logger
 from botocore.exceptions import ClientError
 
+API_NAME = "calendar_mcp"
+STAGE_NAME = "prod"
+REGION_NAME = "us-east-1"
+
 # Create logger for the mTLS manager
 logger = create_logger(logger_name="aws_deployment", log_level="INFO")
 
@@ -53,6 +57,71 @@ def retry_with_backoff(
                 continue
             raise
     raise Exception(f"Max retries ({max_retries}) exceeded")
+
+
+def get_http_api_id_by_name_and_stage(
+    api_name: str,
+    stage_name: str,
+    region: str = "us-east-1",
+) -> str:
+    """
+    Find the ApiId for an API Gateway **HTTP API (v2)** by API name and stage.
+    - Prefers an API whose stages include `stage_name`.
+    - If multiple APIs share the same name, returns the one that has the stage.
+    - Raises if not found or ambiguous.
+    """
+    apigw = boto3.client("apigatewayv2", region_name=region)
+
+    # 1) Gather candidates by name
+    candidates: list[dict[str, str]] = []
+    paginator = apigw.get_paginator("get_apis")
+    for page in paginator.paginate():
+        for api in page.get("Items", []):
+            if api.get("Name") == api_name:
+                candidates.append({"ApiId": api["ApiId"], "Name": api_name})
+
+    if not candidates:
+        raise RuntimeError(f"No HTTP API found with name '{api_name}' in {region}.")
+
+    # 2) Filter by presence of the stage
+    with_stage: list[dict[str, str]] = []
+    for c in candidates:
+        api_id = c["ApiId"]
+        assert isinstance(api_id, str), "ApiId must be a string"
+        stages = apigw.get_stages(ApiId=api_id).get("Items", [])
+        if any(s.get("StageName") == stage_name for s in stages):
+            with_stage.append(c)
+
+    if not with_stage:
+        raise RuntimeError(
+            f"Found API(s) named '{api_name}', but none have a stage named '{stage_name}'."
+        )
+    if len(with_stage) > 1:
+        ids = ", ".join(x["ApiId"] for x in with_stage)
+        raise RuntimeError(
+            f"Multiple APIs named '{api_name}' have a stage '{stage_name}'. "
+            + f"Disambiguate (ApiIds: {ids})."
+        )
+
+    return with_stage[0]["ApiId"]
+
+
+def disable_httpapi_default_endpoint(api_id: str, region: str = "us-east-1") -> bool:
+    """
+    Disable the default execute-api endpoint for an API Gateway **HTTP API (v2)**.
+    Returns True if a change was made, False if already disabled.
+    """
+    apigw = boto3.client("apigatewayv2", region_name=region)
+    try:
+        api = apigw.get_api(ApiId=api_id)
+        if api.get("DisableExecuteApiEndpoint"):
+            return False  # already disabled
+        apigw.update_api(ApiId=api_id, DisableExecuteApiEndpoint=True)
+        return True
+    except ClientError as e:
+        raise RuntimeError(
+            f"Failed to disable default endpoint for API {api_id}: {e}"
+        ) from e
 
 
 class APIDomainManager:
@@ -799,7 +868,9 @@ def parse_args() -> argparse.Namespace:
         "--domain", required=True, help="Domain name (e.g., mcp.example.com)."
     )
     parser.add_argument(
-        "--region_name", default="us-east-1", help="AWS Region (default: us-east-1)."
+        "--region_name",
+        default=REGION_NAME,
+        help=f"AWS Region (default:{REGION_NAME}).",
     )
     parser.add_argument("--sans", help="Comma-separated Subject Alternative Names.")
     parser.add_argument(
@@ -833,6 +904,15 @@ def parse_args() -> argparse.Namespace:
         choices=["RSA_2048", "RSA_3072", "RSA_4096", "EC_prime256v1", "EC_secp384r1"],
         help="Key algorithm (default: RSA_2048).",
     )
+    parser.add_argument(
+        "--api-name",
+        default=API_NAME,
+        help=f"API name (default: {API_NAME}).",
+    )
+    parser.add_argument(
+        "--stage-name", default=STAGE_NAME, help=f"Stage name (default: {STAGE_NAME})."
+    )
+
     return parser.parse_args()
 
 
@@ -913,6 +993,14 @@ def main() -> None:
             raise
 
         # 6. Disable the default execute-api endpoint
+        api_id = get_http_api_id_by_name_and_stage(
+            api_name=args.api_name, stage_name=args.stage_name, region=args.region_name
+        )
+        changed = disable_httpapi_default_endpoint(api_id, args.region_name)
+        logger.info(
+            f"Direct access to API {api_id} "
+            + ("default endpoint disabled." if changed else "was already disabled.")
+        )
 
     except Exception as e:
         logger.error(f"Failed to deploy mTLS infrastructure: {e}")

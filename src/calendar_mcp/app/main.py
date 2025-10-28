@@ -3,7 +3,6 @@ from typing import Any, cast
 
 from app.config import settings
 from auth.bearer_token_auth import check_authentication
-from auth.google_oauth import finish_auth, start_auth_url
 from infrastructure.platform_manager import create_logger
 from mcp.manifest import manifest
 from mcp.router import call_tool, list_tools
@@ -110,43 +109,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
 
         except Exception as e:
             raise (e) from e
-
-    # --- OAuth flow -------------------------------
-
-    elif method == "GET" and route == "/oauth/start":
-        logger.info("Starting OAuth flow")
-        try:
-            auth_url = start_auth_url()
-            return create_response(302, "", headers={"Location": auth_url})
-        except Exception as e:
-            logger.error(f"OAuth start failed: {e}")
-            return create_response(500, f"OAuth start failed: {e}")
-
-    elif method == "GET" and route == "/oauth/callback":
-        logger.info("OAuth callback received")
-        query_params = event.get("queryStringParameters", {})
-        code = query_params.get("code")
-        error = query_params.get("error")
-
-        if error:
-            logger.error(f"OAuth error: {error}")
-            return create_response(400, f"OAuth error: {error}")
-
-        if not code:
-            logger.error("Missing OAuth code")
-            return create_response(400, "Missing code")
-
-        try:
-            finish_auth(code)
-            logger.info("OAuth authentication completed successfully")
-            return create_response(200, "Google connected ✅ You can close this tab.")
-        except Exception as e:
-            logger.error(f"OAuth callback failed: {e}")
-            return create_response(500, f"OAuth callback failed: {e}")
-
-    elif method == "GET" and route == "/healthz":
-        logger.info("Health check requested")
-        return create_response(200, json.dumps({"ok": True}), "application/json")
 
     # Default case for unmatched routes
     return create_response(404, "Route and method not Found")
