@@ -3,8 +3,9 @@ import json
 from cryptography.fernet import Fernet
 from redis import Redis
 
-from app.config import GOOGLE_TOKEN_TTL, settings
+from app.config import GOOGLE_TOKEN_TTL, get_settings
 
+settings = get_settings()
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
 # Stage-1: single local user key; Stage-2/3 key by (provider, team, user)

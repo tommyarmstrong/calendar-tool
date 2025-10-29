@@ -3,7 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from app.config import CALENDAR_MCP_URL
+from app.config import get_settings
+from services.hmac_service import hmac_headers_for_post, json_bytes_for_hmac
 from services.response_helpers import requests_verify_setting, session_with_pkcs12
 
 _TIMEOUT = 30.0
@@ -16,16 +17,32 @@ def call_mcp(name: str, arguments: dict[str, Any] | None) -> Any:
     if not name:
         raise ValueError("Tool 'name' is required")
 
+    settings = get_settings()
     payload: dict[str, Any] = {"name": name, "arguments": arguments or {}}
-    url = f"{CALENDAR_MCP_URL}/mcp/tools/call"
+    body_bytes = json_bytes_for_hmac(payload)
 
+    path = "/mcp/tools/call"
+    url = f"{settings.calendar_mcp_url}{path}"
+
+    # Add standard headers
     req_id = str(uuid.uuid4())
-    headers = {"X-Request-ID": req_id}
+    headers = {
+        "X-Request-ID": req_id,
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    # Add HMAC headers
+    hmac_headers = hmac_headers_for_post(path, body_bytes)
+    headers = {**headers, **hmac_headers}
 
     try:
         session = session_with_pkcs12()
         resp = session.post(
-            url, json=payload, headers=headers, timeout=_TIMEOUT, verify=requests_verify_setting()
+            url,
+            data=body_bytes,
+            headers=headers,
+            timeout=_TIMEOUT,
+            verify=requests_verify_setting(),
         )
         resp.raise_for_status()
     except Exception as e:

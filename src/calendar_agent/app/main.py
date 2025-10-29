@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from app.config import SLACK_PA_BOT_TOKEN
+from app.config import get_settings
 from app.logging import log_plan_response
 from app.process_event import process_event_data
 from infrastructure.platform_manager import create_logger
@@ -92,10 +92,11 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
 
     # Post the result to Slack channel if the post came from Slack
     if data.get("request_type") == "slack":
-        assert SLACK_PA_BOT_TOKEN is not None, "SLACK_PA_BOT_TOKEN is not configured"
+        settings = get_settings()
+        assert settings.slack_pa_bot_token is not None, "SLACK_PA_BOT_TOKEN is not configured"
         response = post_to_slack(
             channel_id=data["channel_id"],
-            slack_bot_token=SLACK_PA_BOT_TOKEN,
+            slack_bot_token=settings.slack_pa_bot_token,
             message=result_string,
         )
         logger.info(f"Slack response: {response}")

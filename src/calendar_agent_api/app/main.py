@@ -51,7 +51,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
 
     # Generate request_id
     request_id = generate_request_id()
-    logger.info(f"Request ID: {request_id}")
 
     # Extract headers and body from the event and create the data for the Calendar Agent
     headers, body_json, agent_data = process_event_data(event, request_id)
@@ -86,8 +85,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
 
     # 3. Validate Client requests
     if headers.get("x-client-id") == X_CLIENT_ID:
-        logger.info("Client request detected")
-
         # Validate the client request
         authorization_issues = authorize_client_request(headers)
         if authorization_issues:

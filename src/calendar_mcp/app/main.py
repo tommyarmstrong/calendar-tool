@@ -1,8 +1,9 @@
 import json
 from typing import Any, cast
 
-from app.config import settings
+from app.config import get_settings
 from auth.bearer_token_auth import check_authentication
+from auth.hmac_auth import verify_hmac_signature
 from infrastructure.platform_manager import create_logger
 from mcp.manifest import manifest
 from mcp.router import call_tool, list_tools
@@ -44,17 +45,42 @@ def create_response(
 
 def process(event: dict[str, Any]) -> dict[str, Any]:
     """Process the incoming  HTTP Gateway event."""
+
+    settings = get_settings()
+
+    # Get the route key and split it into method and route
     route_key = event.get("routeKey", "")
     method, _, route = route_key.partition(" ")
-
     logger.info(f"Processing request: {method} {route}")
+
+    # Get the headers and body from the event
+    body = event.get("body", {})
+    headers = event.get("headers", {})
+    timestamp = headers.get("x-agent-timestamp", "")
+    nonce = headers.get("x-agent-nonce", "")
+    signature = headers.get("x-agent-signature", "")
+
+    if not timestamp or not nonce or not signature:
+        logger.error("Missing HMAC headers")
+        return create_response(401, "Missing HMAC headers")
+
+    is_valid, reason = verify_hmac_signature(
+        ts_str=timestamp,
+        nonce=nonce,
+        method=method,
+        path_only=route,
+        body=body,
+        provided_sig_b64=signature,
+        secret=settings.agent_hmac_secret,
+    )
+
+    if not is_valid:
+        logger.error(f"Invalid HMAC signature: {reason}")
+        return create_response(401, f"Invalid HMAC signature: {reason}")
 
     if not route:
         logger.error("No route found")
         return create_response(404, "Not Found")
-
-    # Check authentication for MCP routes (routes tht begin with "/mcp/")
-    # TODO: This should not use the bearer token auth. Use the OAuth flow and/or sit behind mTLS
 
     if route.startswith("/mcp/"):
         try:

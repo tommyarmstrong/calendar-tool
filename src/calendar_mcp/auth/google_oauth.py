@@ -5,8 +5,10 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
-from app.config import settings
+from app.config import get_settings
 from services.redis_services import load_tokens, purge_tokens, save_tokens
+
+settings = get_settings()
 
 
 def _client_config() -> dict[str, dict[str, str | list[str]]]:

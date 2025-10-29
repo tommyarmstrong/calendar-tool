@@ -5,7 +5,7 @@
 # uvicorn fast_api_server.server:app --reload --port 8000 \
 # --ssl-certfile certificates/server.crt \
 # --ssl-keyfile certificates/server.key \
-# --ssl-ca-certs certificates/ca.crt
+# --ssl-ca-certs certificates/ca.crt \
 # --ssl-cert-reqs 2
 #
 # Run the OAuth server with non-mTLS on port 8001:

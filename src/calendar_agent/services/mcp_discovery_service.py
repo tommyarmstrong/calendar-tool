@@ -2,77 +2,72 @@
 import uuid
 from typing import Any
 
-from app.config import (
-    CALENDAR_MCP_URL,
-    REDIS_CACHE_PATH,
-    REDIS_CACHE_TTL,
-    REDIS_HOST,
-    REDIS_PASSWORD,
-    REDIS_PORT,
-)
-from infrastructure.platform_manager import create_logger
+from app.config import REDIS_CACHE_PATH, REDIS_CACHE_TTL, get_settings
 from services.cache_service import RedisCache
+from services.hmac_service import hmac_headers_for_get
 from services.response_helpers import requests_verify_setting, session_with_pkcs12
 
 _TIMEOUT = 15
 
-logger = create_logger(logger_name="calendar-agent", log_level="INFO")
-
 
 def _get(path: str) -> Any:
     session = session_with_pkcs12()
+    settings = get_settings()
 
     req_id = str(uuid.uuid4())
-    headers = {"X-Request-ID": req_id}
-    url = f"{CALENDAR_MCP_URL}{path}"
+    base_headers = {"X-Request-ID": req_id, "Accept": "application/json"}
+    url = f"{settings.calendar_mcp_url}{path}"
+
+    # Add HMAC headers (does not overwrite existing keys)
+    hmac_headers = hmac_headers_for_get(path)
+    headers = {**base_headers, **hmac_headers}
 
     try:
-        logger.info(f"Sending GET request to {url}")
         resp = session.get(url, headers=headers, timeout=_TIMEOUT, verify=requests_verify_setting())
         resp.raise_for_status()
 
     except Exception as e:
-        raise Exception(f"MCP request failed ({CALENDAR_MCP_URL}{path}): {e}") from e
+        raise Exception(f"MCP request failed ({settings.calendar_mcp_url}{path}): {e}") from e
 
     return resp.json()
 
 
 def get_tools_and_schemas() -> dict[str, Any]:
+    settings = get_settings()
     manifest = None
     tools = None
     schemas = None
 
-    if not all([REDIS_HOST, REDIS_PORT, REDIS_PASSWORD]):
+    if not all([settings.redis_host, settings.redis_port, settings.redis_password]):
         raise ValueError("Redis configuration is incomplete")
-    assert REDIS_HOST is not None and REDIS_PORT is not None and REDIS_PASSWORD is not None
-    cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
+    assert (
+        settings.redis_host is not None
+        and settings.redis_port is not None
+        and settings.redis_password is not None
+    )
+    cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
     retrieved = cache.get_json(REDIS_CACHE_PATH)
 
     if retrieved:
         manifest = retrieved.get("manifest")
         tools = retrieved.get("tools")
         schemas = retrieved.get("schemas")
-        logger.info("Retrieved MCP manifest, tools, and schemas from cache")
 
     fetched_from_mcp = False
     if not manifest:
         manifest = _get("/.well-known/mcp/manifest")
-        logger.info("Fetched MCP manifest from MCP")
         fetched_from_mcp = True
     if not tools:
         mcp_tools = _get("/mcp/tools")
         tools = mcp_tools.get("tools", [])
-        logger.info("Fetched MCP tools from MCP")
         fetched_from_mcp = True
     if not schemas:
         schemas = _get("/mcp/schemas")
-        logger.info("Fetched MCP schemas from MCP")
         fetched_from_mcp = True
 
     val = {"manifest": manifest, "tools": tools, "schemas": schemas}
 
     if fetched_from_mcp:
-        logger.info("Writing MCP manifest, tools, and schemas to cache")
         cache.set_json(REDIS_CACHE_PATH, val, ttl=REDIS_CACHE_TTL)
 
     return val

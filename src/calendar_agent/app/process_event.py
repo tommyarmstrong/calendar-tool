@@ -1,6 +1,6 @@
 from typing import Any
 
-from app.config import REDIS_HOST, REDIS_PASSWORD, REDIS_PORT, X_CLIENT_ID
+from app.config import X_CLIENT_ID, get_settings
 from services.cache_service import RedisCache
 
 
@@ -47,10 +47,11 @@ def process_event_data(event: dict[str, Any]) -> dict[str, Any]:
         validate_data(data)
         return data
     except ValueError as e:
-        assert REDIS_HOST is not None
-        assert REDIS_PORT is not None
-        assert REDIS_PASSWORD is not None
-        cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
+        settings = get_settings()
+        assert settings.redis_host is not None
+        assert settings.redis_port is not None
+        assert settings.redis_password is not None
+        cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
         request_id = data.get("request_id")
         if request_id:
             cache.set_json(
@@ -60,10 +61,11 @@ def process_event_data(event: dict[str, Any]) -> dict[str, Any]:
             )
         raise ValueError(f"Invalid data: {e}") from e
     except Exception as e:
-        assert REDIS_HOST is not None
-        assert REDIS_PORT is not None
-        assert REDIS_PASSWORD is not None
-        cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
+        settings = get_settings()
+        assert settings.redis_host is not None
+        assert settings.redis_port is not None
+        assert settings.redis_password is not None
+        cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
         request_id = data.get("request_id")
         if request_id:
             cache.set_json(

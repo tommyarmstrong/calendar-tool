@@ -3,7 +3,7 @@ import time
 from email.utils import parsedate_to_datetime
 from typing import Any, Protocol, cast
 
-from app.config import OPENAI_API_KEY
+from app.config import get_settings
 from infrastructure.data_models import Message
 from openai import OpenAI
 
@@ -130,7 +130,8 @@ class OpenAIChat:
         Raises:
             ValueError: If the API key is not found in environment
         """
-        api_key = OPENAI_API_KEY
+        settings = get_settings()
+        api_key = settings.openai_api_key
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment")
 
