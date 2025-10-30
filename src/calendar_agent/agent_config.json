@@ -46,6 +46,7 @@
   ],
   "test_event_data": {},
   "parameters": {
+        "apps/prod/calendar/agent_id": "XXX",
         "apps/prod/calendar/calendar_mcp_url": "http://localhost:8000",
         "apps/prod/calendar/calendar_mcp_ca_cert_b64": "XXX",
         "apps/prod/calendar/redis_host": "localhost",
@@ -56,6 +57,7 @@
         "apps/prod/calendar/slack_pa_allowed_bot": "XXX"
   },
     "secrets": {
+        "apps/prod/calendar/secrets/agent_hmac_secret": "XXX",
         "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
         "apps/prod/calendar/secrets/calendar_mcp_client_p12": "XXX",
         "apps/prod/calendar/secrets/calendar_mcp_client_p12_password": "XXX",

@@ -43,6 +43,7 @@
   ],
   "test_event_data": {},
   "parameters": {
+        "apps/prod/calendar/agent_id": "XXX",
         "apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
         "apps/prod/calendar/calendar_mcp_default_tz": "Europe/London",
         "apps/prod/calendar/google_client_id": "XXX",
@@ -55,7 +56,7 @@
         "apps/prod/calendar/redis_port": 999
   },
   "secrets": {
-        "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
+        "apps/prod/calendar/secrets/agent_hmac_secret": "XXX",
         "apps/prod/calendar/secrets/calendar_token_encryption_key": "XXX",
         "apps/prod/calendar/secrets/google_client_secret": "XXX",
         "apps/prod/calendar/secrets/redis_password": "XXX"

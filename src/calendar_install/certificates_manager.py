@@ -79,6 +79,7 @@ def generate_random_secrets() -> dict[str, str]:
         "CALENDAR_BEARER_TOKEN": secrets.token_urlsafe(32),
         "CALENDAR_TOKEN_ENCRYPTION_KEY": Fernet.generate_key().decode(),
         "CALENDAR_MCP_CLIENT_P12_PASSWORD": secrets.token_urlsafe(16),
+        "CALENDAR_HMAC_SECRET": secrets.token_urlsafe(32),
     }
 
 
