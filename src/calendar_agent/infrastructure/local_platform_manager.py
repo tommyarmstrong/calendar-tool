@@ -1,7 +1,5 @@
-import base64
 import logging
 import os
-import tempfile
 from pathlib import Path
 
 
@@ -98,30 +96,14 @@ def requests_verify_setting() -> bool | str:
     Raises:
         No exceptions are raised by this function
     """
-    paramaters = get_parameters(["calendar_mcp_ca_cert_b64", "calendar_mcp_url"], "_")
-    if not paramaters:
-        return True
-
-    ca_cert_b64 = paramaters.get("calendar_mcp_ca_cert_b64")
+    paramaters = get_parameters(["calendar_mcp_url"], "_")
     calendar_mcp_url = paramaters.get("calendar_mcp_url")
 
-    if not ca_cert_b64 or not calendar_mcp_url:
-        return True
-
-    # For HTTPS with self-signed certificates on local host
-    if (
-        ca_cert_b64
-        and ca_cert_b64 != ""
-        and calendar_mcp_url
-        and calendar_mcp_url.startswith("https://")
-        and "localhost" in calendar_mcp_url
-    ):
-        pem_bytes = base64.b64decode(ca_cert_b64)
-        tf = tempfile.NamedTemporaryFile(delete=False, suffix=".pem")
-        tf.write(pem_bytes)
-        tf.flush()
-        tf.close()
-        return tf.name
+    assert isinstance(calendar_mcp_url, str) and calendar_mcp_url is not None
+    if calendar_mcp_url.startswith("https://localhost"):
+        certificate_path = "certificates/truststore.pem"
+        if Path(certificate_path).exists():
+            return certificate_path
 
     # Default: use system trust (works with public certs such as from AWS ACM)
     return True

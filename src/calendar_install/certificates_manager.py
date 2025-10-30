@@ -18,6 +18,7 @@ All certificates are generated in the certificates/ directory within this script
 import argparse
 import base64
 import secrets
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -423,6 +424,21 @@ def create_truststore(cert_dir: Path, ca_crt_path: Path) -> bool:
             truststore_file.write(ca_content)
 
         logger.info(f"Created truststore: {truststore_path}")
+
+        # Also copy truststore to src/calendar_agent_api/certificates/
+        try:
+            src_root = cert_dir.parent.parent  # ../ (up from certificates/ to src/)
+            target_dir = src_root / "calendar_agent_api" / "certificates"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_path = target_dir / "truststore.pem"
+            shutil.copy2(truststore_path, target_path)
+            logger.info(f"Copied truststore to: {target_path}")
+        except Exception as copy_err:
+            # Do not fail the truststore creation if copy fails; just log it
+            logger.warning(
+                f"Failed to copy truststore to agent_api certificates dir: {copy_err}"
+            )
+
         return True
     except Exception as e:
         logger.error(f"Failed to create truststore: {e}")
