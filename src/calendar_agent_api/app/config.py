@@ -71,6 +71,7 @@ class Config:
                 "slack_pa_allowed_bot",
                 "slack_pa_allowed_channels",
                 "slack_pa_allowed_users",
+                "slack_pa_integration",
             ],
             "/apps/prod/calendar/",
         )
@@ -111,10 +112,10 @@ class Config:
         # Add Slack fields if integration is enabled
         if settings.slack_pa_integration == "true":
             required_fields.extend([
-                "slack_pa_bot_token",
                 "slack_pa_allowed_users",
                 "slack_pa_allowed_channels",
                 "slack_pa_allowed_bot",
+                "slack_pa_signing_secret",
             ])
 
         # Validate all required fields
