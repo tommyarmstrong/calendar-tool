@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Any
 
 from infrastructure.platform_manager import get_parameters
 
@@ -125,9 +124,6 @@ class Config:
         if settings.slack_pa_integration == "true":
             required_fields.extend([
                 "slack_pa_bot_token",
-                "slack_pa_allowed_users",
-                "slack_pa_allowed_channels",
-                "slack_pa_allowed_bot",
             ])
 
         # Validate all required fields
@@ -144,36 +140,3 @@ config = Config()
 def get_settings() -> AgentSettings:
     """Get agent settings from the singleton config."""
     return config.get_settings()
-
-
-# Legacy constants for backward compatibility (deprecated - use get_settings() instead)
-
-
-# Legacy constant accessors (deprecated)
-def __getattr__(name: str) -> Any:
-    """Provide backward compatibility for legacy constant access."""
-    legacy_mapping = {
-        "AGENT_ID": "agent_id",
-        "AGENT_HMAC_SECRET": "agent_hmac_secret",
-        "CALENDAR_MCP_URL": "calendar_mcp_url",
-        "CALENDAR_MCP_CLIENT_P12": "calendar_mcp_client_p12",
-        "CALENDAR_MCP_CLIENT_P12_PASSWORD": "calendar_mcp_client_p12_password",
-        "OPENAI_API_KEY": "openai_api_key",
-        "REDIS_HOST": "redis_host",
-        "REDIS_PASSWORD": "redis_password",
-        "REDIS_PORT": "redis_port",
-        "REDIS_URL": "redis_url",
-        "SLACK_PA_ALLOWED_BOT": "slack_pa_allowed_bot",
-        "SLACK_PA_ALLOWED_CHANNELS": "slack_pa_allowed_channels",
-        "SLACK_PA_ALLOWED_USERS": "slack_pa_allowed_users",
-        "SLACK_PA_BOT_TOKEN": "slack_pa_bot_token",
-        "SLACK_PA_INTEGRATION": "slack_pa_integration",
-        "CALENDAR_MCP_CA_CERT_PATH": "calendar_mcp_ca_cert_path",
-        "CALENDAR_MCP_VERIFY_SSL": "calendar_mcp_verify_ssl",
-    }
-
-    if name in legacy_mapping:
-        settings = get_settings()
-        return getattr(settings, legacy_mapping[name])
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

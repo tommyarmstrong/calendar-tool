@@ -29,8 +29,7 @@
     "services/mcp_client_service.py",
     "services/mcp_discovery_service.py",
     "services/renderer_service.py",
-    "services/response_helpers.py",
-    "services/validate_slack_user.py"
+    "services/response_helpers.py"
   ],
   "layers": [
     {
