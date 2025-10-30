@@ -57,10 +57,9 @@ def render_mcp_result(result: dict[str, Any]) -> tuple[str, str]:
     if result.get("error"):
         code = result.get("error", {}).get("code")
         message = result.get("error", {}).get("message")
-        if code.strip() == "not_authenticated" and message.strip() == "Google not linked":
-            result_string = "Not authenticated: Link your Google account to the MCP service."
+        if code.strip() == "not_authenticated" and "Please link your Google account" in message:
             status_code = "401"
-            return status_code, result_string
+            return status_code, message.strip()
 
     # TODO: Add other cases and then change default to 500
     return "200", json.dumps(result)

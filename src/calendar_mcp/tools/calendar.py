@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from app.config import get_settings
 from auth.google_oauth import calendar_service
 from services.redis_services import has_idempotency, set_idempotency
 
@@ -12,10 +13,18 @@ def _idem_key(title: str, start: str, end: str, attendees: list[str]) -> str:
     return hashlib.sha256(src.encode()).hexdigest()
 
 
+def _get_google_not_linked_error() -> dict[str, Any]:
+    settings = get_settings()
+    redirect_url = settings.google_redirect_uri.replace("/oauth/callback", "/oauth/start")
+    code = "not_authenticated"
+    message = f"Please link your Google account with the Calendar MCP: {redirect_url}"
+    return {"error": {"code": code, "message": message}}
+
+
 def freebusy(window_start: str, window_end: str, calendars: list[str] | None = None) -> Any:
     svc = calendar_service()
     if not svc:
-        return {"error": {"code": "not_authenticated", "message": "Google not linked"}}
+        return _get_google_not_linked_error()
     body = {
         "timeMin": window_start,
         "timeMax": window_end,
@@ -36,7 +45,7 @@ def create_event(
 ) -> dict[str, Any]:
     svc = calendar_service()
     if not svc:
-        return {"error": {"code": "not_authenticated", "message": "Google not linked"}}
+        return _get_google_not_linked_error()
 
     key = _idem_key(title, start, end, attendees)
     if has_idempotency(key):

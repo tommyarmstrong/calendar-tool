@@ -51,7 +51,6 @@
   },
   "apigateway_routes": [
     { "method": "GET", "path": "/oauth/start", "lambda": "calendar_oauth_redirect", "stage": "prod" },
-    { "method": "GET", "path": "/oauth/callback", "lambda": "calendar_oauth_redirect", "stage": "prod" },
-    { "method": "GET", "path": "/healthz", "lambda": "calendar_oauth_redirect", "stage": "prod" }
+    { "method": "GET", "path": "/oauth/callback", "lambda": "calendar_oauth_redirect", "stage": "prod" }
   ]
 }

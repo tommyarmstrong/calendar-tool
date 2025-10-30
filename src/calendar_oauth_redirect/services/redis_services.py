@@ -1,14 +1,13 @@
 import json
 
+from app.config import GOOGLE_TOKEN_TTL, settings
 from cryptography.fernet import Fernet
 from redis import Redis
-
-from app.config import GOOGLE_TOKEN_TTL, settings
 
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
 # Stage-1: single local user key; Stage-2/3 key by (provider, team, user)
-USER_KEY = "user:local"
+USER_KEY = "mcp:calendar:oauth:user1"
 
 
 # Encryption setup

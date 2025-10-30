@@ -130,7 +130,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
             result = call_tool(name, args_dict)
             error = result.get("error")
             if error:
-                logger.error(f"{error.get('code')} {error.get('message')}")
+                logger.error(f"{error.get('code')}: {error.get('message')}")
             return create_response(200, json.dumps(result), "application/json")
 
         except Exception as e:
