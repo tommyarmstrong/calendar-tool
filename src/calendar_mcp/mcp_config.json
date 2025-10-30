@@ -16,6 +16,7 @@
     "auth/__init__.py",
     "auth/bearer_token_auth.py",
     "auth/google_oauth.py",
+    "auth/hmac_auth.py",
     "infrastructure/__init__.py",
     "infrastructure/platform_manager.py",
     "mcp/__init__.py",
@@ -43,10 +44,7 @@
   ],
   "test_event_data": {},
   "parameters": {
-        "apps/prod/calendar/agent_id": "XXX",
         "apps/prod/calendar/calendar_mcp_url": "https://localhost:8000",
-        "apps/prod/calendar/calendar_mcp_default_tz": "Europe/London",
-        "apps/prod/calendar/google_client_id": "XXX",
         "apps/prod/calendar/google_redirect_uri": "https://localhost:8001/oauth/callback",
         "apps/prod/calendar/google_scopes": [
             "https://www.googleapis.com/auth/calendar.events",
@@ -58,6 +56,7 @@
   "secrets": {
         "apps/prod/calendar/secrets/agent_hmac_secret": "XXX",
         "apps/prod/calendar/secrets/calendar_token_encryption_key": "XXX",
+        "apps/prod/calendar/secrets/google_client_id": "XXX",
         "apps/prod/calendar/secrets/google_client_secret": "XXX",
         "apps/prod/calendar/secrets/redis_password": "XXX"
   },

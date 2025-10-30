@@ -4,8 +4,9 @@ import uuid
 from typing import Any
 
 from app.config import get_settings
+from infrastructure.platform_manager import requests_verify_setting
 from services.hmac_service import hmac_headers_for_post, json_bytes_for_hmac
-from services.response_helpers import requests_verify_setting, session_with_pkcs12
+from services.response_helpers import session_with_pkcs12
 
 _TIMEOUT = 30.0
 
@@ -35,6 +36,9 @@ def call_mcp(name: str, arguments: dict[str, Any] | None) -> Any:
     hmac_headers = hmac_headers_for_post(path, body_bytes)
     headers = {**headers, **hmac_headers}
 
+    # Get verify settings
+    verify = requests_verify_setting()
+
     try:
         session = session_with_pkcs12()
         resp = session.post(
@@ -42,7 +46,7 @@ def call_mcp(name: str, arguments: dict[str, Any] | None) -> Any:
             data=body_bytes,
             headers=headers,
             timeout=_TIMEOUT,
-            verify=requests_verify_setting(),
+            verify=verify,
         )
         resp.raise_for_status()
     except Exception as e:

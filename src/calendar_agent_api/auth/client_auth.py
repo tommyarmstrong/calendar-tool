@@ -1,6 +1,8 @@
 from typing import Any
 
-from app.config import CALENDAR_BEARER_TOKEN, X_CLIENT_ID
+from app.config import X_CLIENT_ID, get_settings
+
+settings = get_settings()
 
 
 def authorize_client_request(headers: dict[str, Any]) -> list[str]:
@@ -15,7 +17,7 @@ def authorize_client_request(headers: dict[str, Any]) -> list[str]:
     client_id = headers.get("x-client-id")
 
     authorization_issues = []
-    if token != CALENDAR_BEARER_TOKEN:
+    if token != settings.calendar_bearer_token:
         authorization_issues.append(f"Invalid bearer token: {token} ")
 
     if client_id != X_CLIENT_ID:

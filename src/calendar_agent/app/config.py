@@ -13,12 +13,11 @@ X_CLIENT_ID = "dev-test-client-v1"
 class AgentSettings:
     """Agent configuration settings loaded from parameter store."""
 
-    # Core agent settings
+    # Core settings and certificates
     agent_id: str
     agent_hmac_secret: str
     calendar_bearer_token: str
     calendar_mcp_url: str
-    calendar_mcp_ca_cert_b64: str
     calendar_mcp_client_p12: str
     calendar_mcp_client_p12_password: str
     openai_api_key: str
@@ -30,11 +29,11 @@ class AgentSettings:
     redis_url: str
 
     # Slack settings
-    slack_pa_integration: str
-    slack_pa_bot_token: str
     slack_pa_allowed_users: str
     slack_pa_allowed_channels: str
     slack_pa_allowed_bot: str
+    slack_pa_bot_token: str
+    slack_pa_integration: str
 
     # Optional settings
     calendar_mcp_ca_cert_path: str | None = None
@@ -79,7 +78,6 @@ class Config:
         calendar_params = get_parameters(
             [
                 "agent_id",
-                "calendar_mcp_ca_cert_b64",
                 "calendar_mcp_url",
                 "slack_pa_integration",
                 "slack_pa_allowed_users",
@@ -100,7 +98,6 @@ class Config:
             agent_hmac_secret=secrets["agent_hmac_secret"] or "",
             calendar_bearer_token=secrets["calendar_bearer_token"] or "",
             calendar_mcp_url=calendar_params["calendar_mcp_url"] or "",
-            calendar_mcp_ca_cert_b64=calendar_params["calendar_mcp_ca_cert_b64"] or "",
             calendar_mcp_client_p12=secrets["calendar_mcp_client_p12"] or "",
             calendar_mcp_client_p12_password=secrets["calendar_mcp_client_p12_password"] or "",
             openai_api_key=secrets["openai_api_key"] or "",
@@ -128,7 +125,6 @@ class Config:
             "agent_hmac_secret",
             "calendar_bearer_token",
             "calendar_mcp_url",
-            "calendar_mcp_ca_cert_b64",
             "calendar_mcp_client_p12",
             "calendar_mcp_client_p12_password",
             "openai_api_key",
@@ -157,7 +153,7 @@ class Config:
 config = Config()
 
 
-# Convenience functions for backward compatibility
+# Convenience functions
 def get_settings() -> AgentSettings:
     """Get agent settings from the singleton config."""
     return config.get_settings()
@@ -174,7 +170,6 @@ def __getattr__(name: str) -> Any:
         "AGENT_HMAC_SECRET": "agent_hmac_secret",
         "CALENDAR_BEARER_TOKEN": "calendar_bearer_token",
         "CALENDAR_MCP_URL": "calendar_mcp_url",
-        "CALENDAR_MCP_CA_CERT_B64": "calendar_mcp_ca_cert_b64",
         "CALENDAR_MCP_CLIENT_P12": "calendar_mcp_client_p12",
         "CALENDAR_MCP_CLIENT_P12_PASSWORD": "calendar_mcp_client_p12_password",
         "OPENAI_API_KEY": "openai_api_key",

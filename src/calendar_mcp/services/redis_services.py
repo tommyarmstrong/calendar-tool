@@ -112,11 +112,6 @@ def save_timezone(tz: str) -> None:
     redis.hset(USER_KEY, "tz", tz)
 
 
-def load_timezone() -> str:
-    tz = redis.hget(USER_KEY, "tz")
-    return str(tz) if tz else settings.default_tz
-
-
 def set_idempotency(key: str, ttl_sec: int = 600) -> None:
     redis.setex(f"idem:{key}", ttl_sec, "1")
 

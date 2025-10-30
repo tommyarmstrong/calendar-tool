@@ -1,5 +1,7 @@
+import base64
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 
@@ -76,3 +78,50 @@ def get_parameters(
         param_name = param_name.upper()
         result[param_name.lower()] = os.getenv(param_name)
     return result
+
+
+def requests_verify_setting() -> bool | str:
+    """
+    Determine the TLS certificate verification setting for requests.
+
+    Returns the appropriate verification setting for TLS connections:
+    - A temporary file path to a CA certificate for localhost development with self-signed certs
+    - True for system-trusted certificates (production environments)
+
+    For localhost HTTPS connections with self-signed certificates, this function
+    creates a temporary file containing the base64-decoded CA certificate and
+    returns its path for use with requests' verify parameter.
+
+    Returns:
+        bool | str: Either True for system trust or a file path to a CA certificate
+
+    Raises:
+        No exceptions are raised by this function
+    """
+    paramaters = get_parameters(["calendar_mcp_ca_cert_b64", "calendar_mcp_url"], "_")
+    if not paramaters:
+        return True
+
+    ca_cert_b64 = paramaters.get("calendar_mcp_ca_cert_b64")
+    calendar_mcp_url = paramaters.get("calendar_mcp_url")
+
+    if not ca_cert_b64 or not calendar_mcp_url:
+        return True
+
+    # For HTTPS with self-signed certificates on local host
+    if (
+        ca_cert_b64
+        and ca_cert_b64 != ""
+        and calendar_mcp_url
+        and calendar_mcp_url.startswith("https://")
+        and "localhost" in calendar_mcp_url
+    ):
+        pem_bytes = base64.b64decode(ca_cert_b64)
+        tf = tempfile.NamedTemporaryFile(delete=False, suffix=".pem")
+        tf.write(pem_bytes)
+        tf.flush()
+        tf.close()
+        return tf.name
+
+    # Default: use system trust (works with public certs such as from AWS ACM)
+    return True

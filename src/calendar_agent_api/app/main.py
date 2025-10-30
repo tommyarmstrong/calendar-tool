@@ -5,11 +5,9 @@ from typing import Any
 from app.config import (
     INVOKE_LAMBDA_FILE,
     INVOKE_LAMBDA_NAME,
-    REDIS_HOST,
-    REDIS_PASSWORD,
-    REDIS_PORT,
     X_CLIENT_ID,
     generate_request_id,
+    get_settings,
 )
 from app.process_event import process_event_data
 from auth.client_auth import authorize_client_request
@@ -17,8 +15,13 @@ from auth.slack_auth import authorize_slack_request, verify_slack_signature
 from infrastructure.platform_manager import create_logger, invoke_lambda
 from services.cache_service import RedisCache, status_update
 
-assert REDIS_HOST is not None and REDIS_PORT is not None and REDIS_PASSWORD is not None
-cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
+settings = get_settings()
+redis_host = settings.redis_host
+redis_port = settings.redis_port
+redis_password = settings.redis_password
+
+assert redis_host is not None and redis_port is not None and redis_password is not None
+cache = RedisCache(redis_host, int(redis_port), redis_password)
 
 
 def create_slack_response() -> dict[str, str]:

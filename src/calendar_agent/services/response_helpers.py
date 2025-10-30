@@ -1,53 +1,10 @@
 from __future__ import annotations
 
 import base64
-import tempfile
 
 import requests
-from app.config import (
-    CALENDAR_MCP_CA_CERT_B64,
-    CALENDAR_MCP_CLIENT_P12,
-    CALENDAR_MCP_CLIENT_P12_PASSWORD,
-    CALENDAR_MCP_URL,
-)
+from app.config import get_settings
 from requests_pkcs12 import Pkcs12Adapter
-
-
-def requests_verify_setting() -> bool | str:
-    """
-    Determine the TLS certificate verification setting for requests.
-
-    Returns the appropriate verification setting for TLS connections:
-    - A temporary file path to a CA certificate for localhost development with self-signed certs
-    - True for system-trusted certificates (production environments)
-
-    For localhost HTTPS connections with self-signed certificates, this function
-    creates a temporary file containing the base64-decoded CA certificate and
-    returns its path for use with requests' verify parameter.
-
-    Returns:
-        bool | str: Either True for system trust or a file path to a CA certificate
-
-    Raises:
-        No exceptions are raised by this function
-    """
-    # For HTTPS with self-signed certificates on local host
-    if (
-        CALENDAR_MCP_CA_CERT_B64
-        and CALENDAR_MCP_CA_CERT_B64 != ""
-        and CALENDAR_MCP_URL
-        and CALENDAR_MCP_URL.startswith("https://")
-        and "localhost" in CALENDAR_MCP_URL
-    ):
-        pem_bytes = base64.b64decode(CALENDAR_MCP_CA_CERT_B64)
-        tf = tempfile.NamedTemporaryFile(delete=False, suffix=".pem")
-        tf.write(pem_bytes)
-        tf.flush()
-        tf.close()
-        return tf.name
-
-    # Default: use system trust (works with public certs such as from AWS ACM)
-    return True
 
 
 def session_with_pkcs12() -> requests.Session:
@@ -70,27 +27,31 @@ def session_with_pkcs12() -> requests.Session:
         RuntimeError: If CALENDAR_MCP_CLIENT_P12 is empty or invalid base64
         Exception: If PKCS#12 certificate decoding fails
     """
+    settings = get_settings()
+    calendar_mcp_url = settings.calendar_mcp_url
+    calendar_mcp_client_p12 = settings.calendar_mcp_client_p12
+    calendar_mcp_client_p12_password = settings.calendar_mcp_client_p12_password
 
     session = requests.Session()
 
     # Only set up mTLS for HTTPS connections
-    if CALENDAR_MCP_URL and CALENDAR_MCP_URL.startswith("https://"):
-        if not CALENDAR_MCP_CLIENT_P12:
+    if calendar_mcp_url and calendar_mcp_url.startswith("https://"):
+        if not calendar_mcp_client_p12:
             raise RuntimeError(
                 "CALENDAR_MCP_CLIENT_P12 is empty; provide base64 of the client .p12 (cert+key)."
             )
 
         try:
-            p12_bytes = base64.b64decode(CALENDAR_MCP_CLIENT_P12)
+            p12_bytes = base64.b64decode(calendar_mcp_client_p12)
         except Exception as e:
             raise RuntimeError("CALENDAR_MCP_CLIENT_P12 is not valid base64") from e
 
         adapter = Pkcs12Adapter(
             pkcs12_data=p12_bytes,
-            pkcs12_password=(CALENDAR_MCP_CLIENT_P12_PASSWORD or ""),
+            pkcs12_password=(calendar_mcp_client_p12_password or ""),
         )
         session.mount(
-            CALENDAR_MCP_URL,  # <-- Use base URL so the mTLS certs are not sent to other domains
+            calendar_mcp_url,  # <-- Use base URL so the mTLS certs are not sent to other domains
             adapter,
         )
 

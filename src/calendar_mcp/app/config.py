@@ -6,7 +6,6 @@ from infrastructure.platform_manager import get_parameters
 # Constants
 GOOGLE_TOKEN_TTL = 3600 * 20 * 14  # 14 days
 HMAC_CLOCK_SKEW = 300  # ±5 minutes in milliseconds
-_DEFAULT_TZ = "Europe/London"
 
 
 @dataclass
@@ -14,11 +13,9 @@ class MCPSettings:
     """MCP configuration settings loaded from parameter store."""
 
     # Core settings
-    agent_id: str
     agent_hmac_secret: str
     calendar_mcp_url: str
     calendar_token_encryption_key: str
-    default_tz: str
 
     # Google settings
     google_client_id: str
@@ -65,9 +62,7 @@ class Config:
         # Load calendar parameters (not encrypted)
         calendar_params = get_parameters(
             [
-                "agent_id",
                 "calendar_mcp_url",
-                "default_tz",
                 "google_redirect_uri",
                 "google_scopes",
                 "redis_host",
@@ -108,11 +103,9 @@ class Config:
 
         # Create settings object with proper type assertions
         settings = MCPSettings(
-            agent_id=calendar_params.get("agent_id") or "",
             agent_hmac_secret=secrets.get("agent_hmac_secret") or "",
             calendar_mcp_url=calendar_params.get("calendar_mcp_url") or "",
             calendar_token_encryption_key=secrets.get("calendar_token_encryption_key") or "",
-            default_tz=calendar_params.get("default_tz") or _DEFAULT_TZ,
             google_client_id=secrets.get("google_client_id") or "",
             google_client_secret=secrets.get("google_client_secret") or "",
             google_redirect_uri=calendar_params.get("google_redirect_uri") or "",
@@ -129,7 +122,6 @@ class Config:
         """Validate that all required settings have valid values."""
         # Core required fields
         required_fields = [
-            "agent_id",
             "agent_hmac_secret",
             "calendar_mcp_url",
             "calendar_token_encryption_key",
