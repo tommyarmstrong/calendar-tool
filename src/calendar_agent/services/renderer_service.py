@@ -39,10 +39,11 @@ def render_mcp_result(result: dict[str, Any]) -> tuple[str, str]:
         start_timestamp = pretty_datetime(result.get("timeMin", ""))
         end_timestamp = pretty_datetime(result.get("timeMax", ""))
 
-        result_string = f"In the time window: {start_timestamp} - {end_timestamp}, "
-        result_string += "you have events scheduled in the following spots...\n"
+        result_string = f"Your appointments in the time window {start_timestamp} - {end_timestamp}:"
         calendars = result.get("calendars", {})
         for calendar, busy in calendars.items():
+            if not busy.get("busy"):
+                continue
             result_string += f"Calendar: {calendar.capitalize()} \n"
 
             events = busy.get("busy", [])
