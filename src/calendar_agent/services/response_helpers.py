@@ -5,7 +5,6 @@ import tempfile
 
 import requests
 from app.config import (
-    CALENDAR_BEARER_TOKEN,
     CALENDAR_MCP_CA_CERT_B64,
     CALENDAR_MCP_CLIENT_P12,
     CALENDAR_MCP_CLIENT_P12_PASSWORD,
@@ -95,9 +94,8 @@ def session_with_pkcs12() -> requests.Session:
             adapter,
         )
 
-    # Keep legacy bearer & headers
+    # Keep standard headers
     session.headers.update({
-        "Authorization": f"Bearer {CALENDAR_BEARER_TOKEN}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     })
