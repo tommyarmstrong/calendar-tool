@@ -24,9 +24,10 @@ def verify_slack_signature(body_raw: str | bytes, headers: dict[str, str]) -> bo
 
 def authorize_slack_request(data: dict[str, Any]) -> list[str]:
     """Validate the Slack user."""
-    user_id = data.get("user_id")
-    channel_id = data.get("channel_id")
-    bot_user_id = data.get("bot_user_id")
+    payload = data.get("payload", {})
+    user_id = payload.get("user_id")
+    channel_id = payload.get("channel_id")
+    bot_user_id = payload.get("bot_user_id")
 
     authorization_issues = []
     if user_id != settings.slack_pa_allowed_users:
