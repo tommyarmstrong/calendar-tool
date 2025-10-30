@@ -16,7 +16,6 @@ class AgentSettings:
     # Core settings and certificates
     agent_id: str
     agent_hmac_secret: str
-    calendar_bearer_token: str
     calendar_mcp_url: str
     calendar_mcp_client_p12: str
     calendar_mcp_client_p12_password: str
@@ -29,9 +28,6 @@ class AgentSettings:
     redis_url: str
 
     # Slack settings
-    slack_pa_allowed_users: str
-    slack_pa_allowed_channels: str
-    slack_pa_allowed_bot: str
     slack_pa_bot_token: str
     slack_pa_integration: str
 
@@ -63,7 +59,6 @@ class Config:
         secrets = get_parameters(
             [
                 "agent_hmac_secret",
-                "calendar_bearer_token",
                 "calendar_mcp_client_p12",
                 "calendar_mcp_client_p12_password",
                 "openai_api_key",
@@ -80,9 +75,6 @@ class Config:
                 "agent_id",
                 "calendar_mcp_url",
                 "slack_pa_integration",
-                "slack_pa_allowed_users",
-                "slack_pa_allowed_channels",
-                "slack_pa_allowed_bot",
                 "redis_host",
                 "redis_port",
             ],
@@ -96,7 +88,6 @@ class Config:
         settings = AgentSettings(
             agent_id=calendar_params["agent_id"] or "",
             agent_hmac_secret=secrets["agent_hmac_secret"] or "",
-            calendar_bearer_token=secrets["calendar_bearer_token"] or "",
             calendar_mcp_url=calendar_params["calendar_mcp_url"] or "",
             calendar_mcp_client_p12=secrets["calendar_mcp_client_p12"] or "",
             calendar_mcp_client_p12_password=secrets["calendar_mcp_client_p12_password"] or "",
@@ -107,9 +98,6 @@ class Config:
             redis_url=redis_url,
             slack_pa_integration=calendar_params["slack_pa_integration"] or "",
             slack_pa_bot_token=secrets["slack_pa_bot_token"] or "",
-            slack_pa_allowed_users=calendar_params["slack_pa_allowed_users"] or "",
-            slack_pa_allowed_channels=calendar_params["slack_pa_allowed_channels"] or "",
-            slack_pa_allowed_bot=calendar_params["slack_pa_allowed_bot"] or "",
         )
 
         # Validate settings
@@ -123,7 +111,6 @@ class Config:
         required_fields = [
             "agent_id",
             "agent_hmac_secret",
-            "calendar_bearer_token",
             "calendar_mcp_url",
             "calendar_mcp_client_p12",
             "calendar_mcp_client_p12_password",
@@ -168,7 +155,6 @@ def __getattr__(name: str) -> Any:
     legacy_mapping = {
         "AGENT_ID": "agent_id",
         "AGENT_HMAC_SECRET": "agent_hmac_secret",
-        "CALENDAR_BEARER_TOKEN": "calendar_bearer_token",
         "CALENDAR_MCP_URL": "calendar_mcp_url",
         "CALENDAR_MCP_CLIENT_P12": "calendar_mcp_client_p12",
         "CALENDAR_MCP_CLIENT_P12_PASSWORD": "calendar_mcp_client_p12_password",

@@ -36,7 +36,12 @@
   "test_event_data": {},
   "parameters": {
         "apps/prod/calendar/redis_host": "localhost",
-        "apps/prod/calendar/redis_port": 999
+        "apps/prod/calendar/redis_port": 999,
+        "apps/prod/calendar/slack_pa_allowed_users": "XXX",
+        "apps/prod/calendar/slack_pa_allowed_channels": "XXX",
+        "apps/prod/calendar/slack_pa_allowed_bot": "XXX",
+        "apps/prod/calendar/slack_pa_integration": "false"
+
   },
   "secrets": {
       "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",

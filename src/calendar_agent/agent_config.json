@@ -51,14 +51,10 @@
         "apps/prod/calendar/calendar_mcp_url": "http://localhost:8000",
         "apps/prod/calendar/redis_host": "localhost",
         "apps/prod/calendar/redis_port": 999,
-        "apps/prod/calendar/slack_pa_integration": "false",
-        "apps/prod/calendar/slack_pa_allowed_users": "XXX",
-        "apps/prod/calendar/slack_pa_allowed_channels": "XXX",
-        "apps/prod/calendar/slack_pa_allowed_bot": "XXX"
+        "apps/prod/calendar/slack_pa_integration": "false"
   },
     "secrets": {
         "apps/prod/calendar/secrets/agent_hmac_secret": "XXX",
-        "apps/prod/calendar/secrets/calendar_bearer_token": "XXX",
         "apps/prod/calendar/secrets/calendar_mcp_client_p12": "XXX",
         "apps/prod/calendar/secrets/calendar_mcp_client_p12_password": "XXX",
         "apps/prod/calendar/secrets/openai_api_key": "XXX",
