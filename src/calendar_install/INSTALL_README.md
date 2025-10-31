@@ -4,12 +4,13 @@ This guide covers the installation and deployment of the Calendar Tool system, w
 
 - **Calendar Agent** - Core Lambda function for calendar operations
 - **Calendar Agent API** - API Gateway for external access
-- **Calendar MCP** - Model Context Protocol server for calendar integration
+- **Calendar MCP** - Model Context Protocol (MCP) server for calendar integration
+- **Google OAuth Redirect** - Supports linking the MCP with Google accounts for authorization using OAuth
 
 The **Calendar Install** directory contains tools to deploy the system, into Amazon Web Services (AWS).
 
 
-## 1. Clone Repository
+## 1. 🔄 Clone Repository
 
 ```bash
 # Clone the calendar-tool repository
@@ -24,29 +25,61 @@ The repository contains the following main components:
 ```
 calendar-tool/
 ├── src/
-│   ├── calendar_agent/           # Core calendar processing Lambda
-│   │   ├── agent_config.json    # Agent configuration
-│   │   ├── app/config.py        # Agent configuration loader
-│   │   └── ...
-│   ├── calendar_agent_api/      # API Gateway for external access
-│   │   ├── agent_api_config.json # API configuration
-│   │   ├── app/config.py        # API configuration loader
-│   │   └── ...
-│   ├── calendar_mcp/            # Model Context Protocol server
-│   │   ├── mcp_config.json     # MCP configuration
-│   │   ├── app/config.py       # MCP configuration loader
-│   │   └── ...
-│   └── calendar_install/        # Deployment tools
-│       ├── aws_parameter_manager.py
+│   ├── calendar_agent/             # Core calendar processing Lambda
+│   │   ├── app/                    # Application modules
+│   │   │   ├── main.py             # Main application logic
+│   │   │   └── ...
+│   │   ├── infrastructure/         # Infrastructure modules
+│   │   ├── services/               # Service modules
+│   │   ├── agent_config.json       # Agent configuration
+│   │   └── agent_handler.py        # Lambda handler
+│   ├── calendar_agent_api/         # API Gateway for external access
+│   │   ├── app/                    # Application modules
+│   │   │   ├── main.py             # Main application logic
+│   │   │   └── ...
+│   │   ├── auth/                   # Authentication modules
+│   │   ├── clients/                # Client modules
+│   │   ├── infrastructure/         # Infrastructure modules
+│   │   ├── services/               # Service modules
+│   │   ├── agent_api_config.json   # API configuration
+│   │   ├── agent_api_handler.py    # Lambda handler
+│   │   └── fast_api_server.py      # FastAPI server for local dev
+│   ├── calendar_mcp/               # Model Context Protocol server
+│   │   ├── app/                    # Application modules
+│   │   │   ├── main.py             # Main application logic
+│   │   │   └── ...
+│   │   ├── auth/                       # Authentication modules
+│   │   ├── fast_api_server/            # FastAPI server for local dev
+│   │   │   ├── server.py               # FastAPI server
+│   │   │   └── google_oauth_server.py  # OAuth server
+│   │   ├── infrastructure/             # Infrastructure modules
+│   │   ├── mcp/                        # MCP protocol modules
+│   │   ├── services/                   # Service modules
+│   │   ├── tools/                      # MCP tools
+│   │   ├── mcp_config.json             # MCP configuration
+│   │   └── mcp_handler.py              # Lambda handler
+│   ├── calendar_oauth_redirect/    # Google OAuth redirect handler
+│   │   ├── app/                    # Application modules
+│   │   │   ├── main.py             # Main application logic
+│   │   │   └── ...
+│   │   ├── auth/                   # Authentication modules
+│   │   ├── infrastructure/         # Infrastructure modules
+│   │   ├── services/               # Service modules
+│   │   ├── redirect_config.json    # OAuth redirect configuration
+│   │   ├── redirect_handler.py     # Lambda handler
+│   │   └── fast_api_server.py      # FastAPI server for local dev
+│   └── calendar_install/           # Deployment tools
+│       ├── certificates/           # SSL certificates directory
+│       ├── aws_api_gateway_manager.py
 │       ├── aws_iam_manager.py
 │       ├── aws_lambda_manager.py
-│       ├── aws_api_gateway_manager.py
-│       └── INSTALL_README.md   # This file
-└── certificates/               # SSL certificates for mTLS
+│       ├── aws_parameter_manager.py
+│       ├── CERTIFICATES_README.md      # Certificates documentation
+│       └── INSTALL_README.md           # This file
 ```
 
 
-## 2. Google Cloud Configuration
+## 2. 📅 Google Cloud Configuration
 
 Take the following steps to enable the Calendar MCP to authenticate to the Google API using OAuth and then take actions on the Google Calendar:
 
@@ -80,7 +113,7 @@ GOOGLE_REDIRECT_URI = http://localhost:8001/oauth/callback
 GOOGLE_SCOPES=https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.readonly
 ```
 
-## 3. General Parameters and Secrets
+## 3. ⚙️ General Parameters and Secrets
 
 Configure the following environment variables on your local system.
 
@@ -90,9 +123,13 @@ export OPENAI_API_KEY="your-openai-key"
 export REDIS_HOST="your-redis-host"
 export REDIS_PASSWORD="your-redis-password"
 export REDIS_PORT="your-redis-port"
+
+# Aplication configuration
+export CALENDAR_MCP_URL="https://localhost:8000"   # For local testing
+export CALENDAR_MCP_DEFAULT_TZ="Europe/London"     # Set as required
 ```
 
-## 4. Calendar Parameters, Secrets and Certificates
+## 4. 🔐 Secrets and Certificates
 
 To generate calendar MCP certificates and secrets run the following:
 
@@ -125,7 +162,7 @@ source src/calendar_intall/certificates/set_env.sh
 Permenantly delete the files `src/calendar_intall/certificates/set_env.sh` and `src/calendar_intall/certificates/append_to_zshrc.sh` so that passwords are not left on file.
 
 
-## 5. Local Deployment
+## 5. 💻 Local Deployment
 
 ### Pre-requisites
 
@@ -209,7 +246,7 @@ The Ngrok terminal should show the externally available URL which clients can co
 Skip to section XX to see how to run the test client.
 
 
-## 6. AWS Deployment
+## 6. ☁️ AWS Deployment
 
 ### Pre-requisites
 
@@ -247,12 +284,14 @@ The install order is:
 1. Calendar MCP
 2. Calendar Agent
 3. Calendar Agent API
+4. Calendar OAuth Redirect
 
 Each module has its own configuration file:
 
 - `src/calendar_mcp/mcp_config.json` - Calendar MCP configuration
 - `src/calendar_agent/agent_config.json` - Calendar Agent configuration
 - `src/calendar_agent_api/agent_api_config.json` - Calendar Agent API configuration
+- `src/calendar_oauth_redirect/redirect_config.json` - Calendar OAuth Redirect configuration
 
 #### Calendar MCP
 Run the scripts in the following order, checking for errors:
@@ -323,6 +362,29 @@ Or run the deploy script:
 python aws_deploy.py --config-file ../calendar_agent_api/agent_api_config.json
 ```
 
+#### Calendar OAuth Redirect
+Run the scripts in the following order, checking for errors:
+
+```bash
+# Deploy parameters and secrets
+python aws_parameter_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
+
+# Deploy IAM roles and policies
+python aws_iam_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
+
+# Deploy Lambda function
+python aws_lambda_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
+
+# Deploy API Gateway routes
+python aws_api_gateway_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
+```
+
+Or run the deploy script:
+```bash
+# Deploy all of the services in sequence
+python aws_deploy.py --config-file ../calendar_oauth_redirect/redirect_config.json
+```
+
 #### Update Paramaters
 
 **NEED TO COMPlETE**
@@ -339,13 +401,12 @@ To ensure the Calendar Agent can only talk to the MCP with mTLS run the script `
 ```bash
 cd calendar_install
 python aws_mTLS_manager.py --bucket <globally-unique-bucket-name> --domain <calendar-mcp.example.com>
-``
+```
 
 Now create a CNAME in your DNS to point to the MCP domain mapping.
 
 
-
-## 7. Connect with Calendar MCP Client
+## 7. 💻 Connect with Calendar MCP Client
 
 ### 7.1 Local Server (FastAPI)
 
@@ -378,7 +439,7 @@ python clients/calendar_client.py --ngrok --token <bearer-token-value> "Create a
 
 As above, but don't use the `--ngrok` flag and instead add in the `--url agent-api-aws-invoke-url`.
 
-## 8. Configure Slack
+## 8. 💬 Configure Slack
 
 ### Create a Slack app & bot user
 
@@ -404,10 +465,7 @@ As above, but don't use the `--ngrok` flag and instead add in the `--url agent-a
 
 
 
-
-
-
-## Troubleshooting
+## 🔍 Troubleshooting
 
 
 ### Common Issues
@@ -419,13 +477,12 @@ Check CloudWatch logs for each component:
 - `/aws/lambda/calendar_agent`
 - `/aws/lambda/calendar_agent_api`
 - `/aws/lambda/calendar_mcp`
+- `/aws/lambda/calendar_oauth_redirect`
 
-## Next Steps
+## ➡ Next Steps
 
 After successful installation:
 
-
-
-## Support
+## 💡 Support
 
 For issues or questions:

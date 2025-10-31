@@ -1,10 +1,10 @@
 # Calendar Tool Certificates
 
-This document describes all the certificates created by the `CertificateManager` in the calendar tool infrastructure.
+This document describes the certificates created by the `certificate_manager.py` and their use in the calendar tool infrastructure.
 
 ## Certificate Overview
 
-The calendar tool uses a certificate-based security model with mutual TLS (mTLS) authentication. All certificates are created using the `CertificateManager` class and follow a hierarchical structure with a root CA certificate signing all other certificates.
+The calendar tool uses a certificate-based security model with mutual TLS (mTLS) authentication. All certificates are created using the `certificate_manager.py` file and follow a hierarchical structure with a root CA certificate signing all other certificates.
 
 ## Certificate Types and Details
 
@@ -24,7 +24,7 @@ The calendar tool uses a certificate-based security model with mutual TLS (mTLS)
 
 ### 2. **Client Certificate (Agent)**
 - **Type**: Client certificate (X.509)
-- **Purpose**: Authenticates the calendar agent for mTLS communication
+- **Purpose**: Authenticates the calendar agent for mTLS communication with API Gateway for the MCP
 - **Files Created**:
   - `client.crt` (PEM format)
   - `client.key` (private key)
@@ -34,11 +34,11 @@ The calendar tool uses a certificate-based security model with mutual TLS (mTLS)
   - **Environment Variable**: `CALENDAR_MCP_CLIENT_P12` (base64 encoded P12 bundle)
 - **Validity**: 60 days
 - **Key Size**: 2048 bits RSA
-- **Usage**: Client authentication for mTLS
+- **Usage**: Client authentication for mTLS with the API Gateway of the MCP
 
 ### 3. **Server Certificate (MCP Service)**
 - **Type**: Server certificate (X.509)
-- **Purpose**: Secures the MCP (Model Context Protocol) service endpoint
+- **Purpose**: Secures the MCP service endpoint (local deployment only)
 - **Files Created**:
   - `server.crt` (PEM format)
   - `server.key` (private key)
@@ -47,7 +47,7 @@ The calendar tool uses a certificate-based security model with mutual TLS (mTLS)
   - **MCP Copy**: Copied to `calendar_mcp/certificates/` directory for local development
 - **Validity**: 60 days
 - **Key Size**: 2048 bits RSA
-- **Usage**: Secures the MCP service endpoint with Subject Alternative Name (SAN) support
+- **Usage**: Secures the MCP service endpoint with Subject Alternative Name (SAN) support (local deployment only)
 
 ## Additional Files Created
 
@@ -58,6 +58,8 @@ The calendar tool uses a certificate-based security model with mutual TLS (mTLS)
   - `truststore.pem` (PEM format)
 - **Distribution**:
   - **File Copy**: Stored in `certificates/` directory
+  - **AWS Truststore Copy**: Copied to AWS S3 truststore bucket and used for validating client.p12 in mTLS
+  - **Agent API Copy**: Copied to `calendar_agent_api/certificates/` directory for local development
 - **Usage**: Used by applications to verify certificate chains
 
 ### 5. **P12 Bundle (Client Authentication)**

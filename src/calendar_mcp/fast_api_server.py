@@ -1,8 +1,12 @@
-# fast_api_server/google_oauth_server.py
+# fast_api_server/server.py
 #
-# Run the OAuth server with non-mTLS on port 8001:
+# Run the MCP server with mTLS on port 8000:
 #
-# uvicorn fast_api_server.google_oauth_server:app --reload --port 8001
+# uvicorn fast_api_server:app --reload --port 8000 \
+# --ssl-certfile certificates/server.crt \
+# --ssl-keyfile certificates/server.key \
+# --ssl-ca-certs certificates/ca.crt \
+# --ssl-cert-reqs 2
 
 
 from __future__ import annotations
@@ -117,15 +121,25 @@ async def _process_request(request: Request) -> Response:
 
 
 # ===== FastAPI app & routers =====
-app = FastAPI(title="Google OAuth Redirect Service")
+app = FastAPI(title="Calendar MCP Service")
 
 
-# --- OAuth flow ---
-@app.get("/oauth/start")
-async def oauth_start(request: Request) -> Response:
+# --- MCP Discovery and Tools ---
+@app.get("/.well-known/mcp/manifest")
+async def manifest(request: Request) -> Response:
     return await _process_request(request)
 
 
-@app.get("/oauth/callback")
-async def oauth_callback(request: Request) -> Response:
+@app.get("/mcp/schemas")
+async def schemas(request: Request) -> Response:
+    return await _process_request(request)
+
+
+@app.get("/mcp/tools")
+async def tools(request: Request) -> Response:
+    return await _process_request(request)
+
+
+@app.post("/mcp/tools/call")
+async def tools_call(request: Request) -> Response:
     return await _process_request(request)
