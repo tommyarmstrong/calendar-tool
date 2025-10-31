@@ -195,9 +195,17 @@ When contributing to this project:
 - Monitor CloudWatch logs for authentication failures
 - Keep certificates up to date and rotate periodically
 
+## Author
+
+**Tommy Armstrong**
+
 ## License
 
-[Add your license information here]
+**License TBD** - All rights reserved.
+
+Copyright © 2025 Tommy Armstrong. All rights reserved.
+
+(Note: License terms to be determined.)
 
 ## Support
 
