@@ -17,4 +17,5 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         raise Exception(f"Error in processing Calendar Agent: {e}") from e
 
 
-# Testing integration of Github and AWS with minor code change.
+# Change 1: Testing integration of Github and AWS with minor code change.
+# Change 2
