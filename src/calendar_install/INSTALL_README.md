@@ -427,6 +427,3 @@ After successful installation:
 ## 💡 Support
 
 For issues or questions:
-
-
-Testing that changes to this README do not trigger CI/CD workflows.
