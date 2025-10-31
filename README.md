@@ -114,15 +114,17 @@ Creates calendar events in Google Calendar with specified details such as:
 
 ```
 calendar-tool/
+├── docs/                        # Documentation
+│   ├── CERTIFICATES.md          # Certificate setup guide
+│   ├── CICD.md                  # CI/CD pipeline
+│   └── INSTALL.md               # Installation instructions
 ├── src/
-│   ├── calendar_agent/          # Main calendar agent service
-│   ├── calendar_mcp/            # MCP service with Google Calendar tools
-│   ├── calendar_agent_api/      # API gateway layer
-│   ├── calendar_oauth_redirect/ # Google OAuth redirect handler
-│   └── calendar_install/        # AWS deployment automation
-│       ├── INSTALL_README.md    # Installation instructions
-│       └── CERTIFICATES_README.md # Certificate setup guide
-└── certificates/                # Certificate storage (local dev)
+|   ├── calendar_agent/          # Main calendar agent service
+|   ├── calendar_agent_api/      # API gateway layer
+|   ├── calendar_install/        # AWS deployment automation
+|   ├── calendar_mcp/            # MCP service with Google Calendar tools
+|   └── calendar_oauth_redirect/ # Google OAuth redirect handler
+└── README.md                    # Project overview (this document)
 ```
 
 ## Getting Started
@@ -138,8 +140,8 @@ calendar-tool/
 ### Installation
 
 For detailed installation instructions, see:
-- **[Installation Guide](src/calendar_install/INSTALL_README.md)** - Step-by-step setup instructions
-- **[Certificate Guide](src/calendar_install/CERTIFICATES_README.md)** - Certificate generation and configuration
+- **[Installation Guide](docs/INSTALL.md)** - Step-by-step setup instructions
+- **[Certificate Guide](docs/CERTIFICATES.md)** - Certificate generation and configuration
 
 ### AWS Deployment
 
@@ -242,5 +244,5 @@ Copyright © 2025 Tommy Armstrong. All rights reserved.
 ## Support
 
 For issues and questions, please refer to:
-- Installation documentation: `src/calendar_install/INSTALL_README.md`
-- Certificate setup: `src/calendar_install/CERTIFICATES_README.md`
+- Installation documentation: `docs/INSTALL.md`
+- Certificate setup: `docs/CERTIFICATES.md`
