@@ -187,6 +187,37 @@ When contributing to this project:
 3. Ensure all functions have comprehensive docstrings
 4. Test both local and AWS deployment scenarios
 
+### Development Workflow
+
+1. **Create a branch** from the main branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   # or
+   git checkout -b fix/your-bug-fix-name
+   ```
+
+2. **Make your changes** and ensure they follow the project guidelines
+
+3. **Commit your changes** with clear, descriptive commit messages:
+   ```bash
+   git commit -m "Add feature: brief description"
+   ```
+
+4. **Push your branch** to the remote repository:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+5. **Create a Pull Request** on GitHub:
+   - Provide a clear title and description
+   - Reference any related issues
+   - Ensure all tests pass and linting checks succeed
+   - Request review from maintainers
+
+6. **Respond to feedback** and make any requested changes
+
+Once your pull request is approved, it will be merged into the main branch.
+
 ## Security Considerations
 
 - Never commit secrets or certificates to version control
