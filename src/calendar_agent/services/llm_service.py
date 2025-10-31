@@ -6,6 +6,8 @@ from infrastructure.openai_gpt_manager import OpenAIChat
 from services.mcp_discovery_service import get_tools_and_schemas
 from services.renderer_service import render_prompt
 
+_MODEL_NAME = "gpt-5-mini"
+
 
 def _make_name_maps(mcp_tool_names: list[str]) -> tuple[dict[str, str], dict[str, str]]:
     """
@@ -74,7 +76,7 @@ def _openai_tools_from_mcp() -> tuple[list[dict[str, Any]], dict[str, str], dict
 def plan_mcp_call(message: str) -> dict[str, Any]:
     """Plan the MCP call."""
 
-    llm = OpenAIChat(model="gpt-5-mini")
+    llm = OpenAIChat(model=_MODEL_NAME)
 
     system_prompt = render_prompt()
     oai_tools, _, llm_to_mcp = _openai_tools_from_mcp()
@@ -90,6 +92,9 @@ def plan_mcp_call(message: str) -> dict[str, Any]:
         reasoning_effort="low",
         max_output_tokens=500,
     )
+
+    # Type assertion: llm.generate() returns a dict-like response
+    assert isinstance(llm_response, dict)
 
     # Convert the LLM tool name back to the MCP name
     llm_tool_name = llm_response.get("tool_name", "")
@@ -112,6 +117,8 @@ def plan_mcp_call(message: str) -> dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in tool arguments: {e}") from e
 
-    # Type assertion: llm.generate() returns a dict-like response
-    assert isinstance(llm_response, dict)
+    # TODO: Could validate the agruments returned by the LLM against the
+    # TODO: definitions provided by the MCP. This would provide a more
+    # TODO: deterministic system and catch problems before calling the MCP.
+
     return llm_response

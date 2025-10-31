@@ -1,0 +1,26 @@
+# Ignore non-Python files
+*.md
+*.txt
+*.json
+*.log
+
+# Ignore generated/cache directories
+*.egg-info/
+*.dist-info/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Ignore certificates and other binary files
+certificates/
+*.pem
+*.crt
+*.key
+*.p12
+*.b64
+
+# Ignore lambda zip files
+*.zip

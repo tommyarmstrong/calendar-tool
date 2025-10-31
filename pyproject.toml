@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = [
+    "*.md",
+    "*.txt",
+    "*.json",
+    "*.log",
+    "certificates/",
+    "*.zip",
+    "*.pem",
+    "*.crt",
+    "*.key",
+    "*.p12",
+    "*.b64",
+    "README.md",
+    "llm_context.md",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
