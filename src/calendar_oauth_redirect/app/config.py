@@ -16,9 +16,7 @@ def _validate_params(params: dict[str, Any]) -> list[str]:
     missing_params = []
     for param, value in params.items():
         if not value:
-            missing_params.append(
-                f"Parameter is required but was empty or None: {param}"
-            )
+            missing_params.append(f"Parameter is required but was empty or None: {param}")
     return missing_params
 
 
@@ -59,16 +57,12 @@ def _get_parameter_store_config() -> dict[str, Any]:
 
     # Handle google_scopes, which need to be a list but might be stored as a string
     # Use parameter store value or fallback to default
-    google_scopes_param: Any = (
-        calendar_params.get("google_scopes") if calendar_params else None
-    )
+    google_scopes_param: Any = calendar_params.get("google_scopes") if calendar_params else None
     if google_scopes_param:
         # If it's a string, split by comma; if it's already a list, use as-is
         if isinstance(google_scopes_param, str):
             google_scopes = [
-                scope.strip()
-                for scope in google_scopes_param.split(",")
-                if scope.strip()
+                scope.strip() for scope in google_scopes_param.split(",") if scope.strip()
             ]
         else:
             # Handle case where it's already a list or other iterable

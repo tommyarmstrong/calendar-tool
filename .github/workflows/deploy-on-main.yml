@@ -3,7 +3,6 @@ name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git dif
 on:
   push:
     branches: [ main ]
-    # Only trigger when these folders (or the workflow) change.
     paths:
       - "src/calendar_agent/**"
       - "src/calendar_agent_api/**"
@@ -24,15 +23,15 @@ jobs:
     name: Detect which Lambdas changed
     runs-on: ubuntu-latest
     outputs:
-      agent:         ${{ steps.set.outputs.agent }}
-      agent_api:     ${{ steps.set.outputs.agent_api }}
-      mcp:           ${{ steps.set.outputs.mcp }}
+      agent:          ${{ steps.set.outputs.agent }}
+      agent_api:      ${{ steps.set.outputs.agent_api }}
+      mcp:            ${{ steps.set.outputs.mcp }}
       oauth_redirect: ${{ steps.set.outputs.oauth_redirect }}
-      changed_files: ${{ steps.set.outputs.changed_files }}
+      changed_files:  ${{ steps.set.outputs.changed_files }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # we need history for git diff
+          fetch-depth: 0  # need history for git diff
 
       - name: Compute changed files
         id: set
@@ -43,30 +42,28 @@ jobs:
           BEFORE="${{ github.event.before }}"
           SHA="${{ github.sha }}"
 
-          # Handle first push / force-push edge cases
-          if [[ "$BEFORE" == "0000000000000000000000000000000000000000" || -z "$BEFORE" ]]; then
+          # Handle new branch / first push
+          if [[ -z "${BEFORE}" || "${BEFORE}" == "0000000000000000000000000000000000000000" ]]; then
             BEFORE="$(git rev-list -n 2 HEAD | tail -1)"
           fi
 
-          # List changed files
-          CHANGED="$(git diff --name-only "$BEFORE" "$SHA" || true)"
+          # Files changed in this push
+          CHANGED="$(git diff --name-only "${BEFORE}" "${SHA}" || true)"
           echo "Changed files:"
-          echo "$CHANGED"
+          echo "${CHANGED}"
 
-          # Common exclude regex (markdown + config + ignores)
+          # Exclude patterns (markdown, config, ignore files)
           EXCLUDE='(\.md$|(^|/)README\.md$|(^|/)\.gitignore$|(^|/)\.ruffignore$|(^|/)\.mypyignore$|(^|/)\.mypy\.toml$|(^|/)\.ruff\.toml$|(^|/)\.lambdaignore$|(^|/)requirements\.txt$|(^|/)pyproject\.toml$)'
 
-          # Function-specific excludes
           EXCL_AGENT='(^|/)src/calendar_agent/agent_config\.json$'
           EXCL_AGENT_API='(^|/)src/calendar_agent_api/agent_api_config\.json$|(^|/)(fast_api_server\.py|fast_api_server/)'
           EXCL_MCP='(^|/)src/calendar_mcp/mcp_config\.json$'
           EXCL_OAUTH='(^|/)src/calendar_oauth_redirect/redirect_config\.json$'
 
-          # Helper: returns true if files changed in path P and not excluded
           changed_in() {
             local PATH_PREFIX="$1"
             local EXTRA_EXCL="$2"
-            echo "$CHANGED" | grep -E "^${PATH_PREFIX}/" | grep -Ev "$EXCLUDE|$EXTRA_EXCL" >/dev/null
+            echo "${CHANGED}" | grep -E "^${PATH_PREFIX}/" | grep -Ev "${EXCLUDE}|${EXTRA_EXCL}" >/dev/null
           }
 
           AGENT=false
@@ -74,19 +71,19 @@ jobs:
           MCP=false
           OAUTH=false
 
-          changed_in "src/calendar_agent" "$EXCL_AGENT" && AGENT=true
-          changed_in "src/calendar_agent_api" "$EXCL_AGENT_API" && AGENT_API=true
-          changed_in "src/calendar_mcp" "$EXCL_MCP" && MCP=true
-          changed_in "src/calendar_oauth_redirect" "$EXCL_OAUTH" && OAUTH=true
+          changed_in "src/calendar_agent" "${EXCL_AGENT}" && AGENT=true
+          changed_in "src/calendar_agent_api" "${EXCL_AGENT_API}" && AGENT_API=true
+          changed_in "src/calendar_mcp" "${EXCL_MCP}" && MCP=true
+          changed_in "src/calendar_oauth_redirect" "${EXCL_OAUTH}" && OAUTH=true
 
-          echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
-          echo "agent_api=$AGENT_API" >> "$GITHUB_OUTPUT"
-          echo "mcp=$MCP" >> "$GITHUB_OUTPUT"
-          echo "oauth_redirect=$OAUTH" >> "$GITHUB_OUTPUT"
+          echo "agent=${AGENT}" >> "$GITHUB_OUTPUT"
+          echo "agent_api=${AGENT_API}" >> "$GITHUB_OUTPUT"
+          echo "mcp=${MCP}" >> "$GITHUB_OUTPUT"
+          echo "oauth_redirect=${OAUTH}" >> "$GITHUB_OUTPUT"
 
-          # For debugging: emit JSON array of changed files
-          printf '%s\n' "$CHANGED" | jq -R -s 'split("\n") - [""]' > changed.json
-          echo "changed_files=$(cat changed.json)" >> "$GITHUB_OUTPUT"
+          # Single-line JSON for debug (avoid multiline outputs)
+          CHANGED_JSON=$(printf '%s\n' "${CHANGED}" | jq -R -s -c 'split("\n") - [""]')
+          printf 'changed_files=%s\n' "${CHANGED_JSON}" >> "$GITHUB_OUTPUT"
 
       - name: Debug summary
         run: |

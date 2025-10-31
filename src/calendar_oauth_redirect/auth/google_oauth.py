@@ -1,11 +1,10 @@
 from typing import Any
 
+from app.config import settings
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-
-from app.config import settings
 from services.redis_services import load_tokens, purge_tokens, save_tokens
 
 
@@ -30,9 +29,7 @@ def oauth_flow() -> Flow:
 
 def start_auth_url(state: str = "state") -> str:
     flow = oauth_flow()
-    url, _ = flow.authorization_url(
-        access_type="offline", prompt="consent", state=state
-    )
+    url, _ = flow.authorization_url(access_type="offline", prompt="consent", state=state)
     # Type assertion: authorization_url returns a string URL
     assert isinstance(url, str)
     return url

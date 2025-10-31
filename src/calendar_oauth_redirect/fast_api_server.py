@@ -83,9 +83,7 @@ def _build_httpapi_v2_event(request: Request, body_bytes: bytes) -> dict[str, An
             "apiId": "local",
             "domainName": host,
             "domainPrefix": domain_prefix,
-            "time": time.strftime(
-                "%d/%b/%Y:%H:%M:%S +0000", time.gmtime(now_ms / 1000)
-            ),
+            "time": time.strftime("%d/%b/%Y:%H:%M:%S +0000", time.gmtime(now_ms / 1000)),
             "timeEpoch": now_ms,
             "http": {
                 "method": method,

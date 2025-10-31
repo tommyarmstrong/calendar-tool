@@ -74,9 +74,7 @@ def get_parameters(
 """ AWS CloudWatch """
 
 
-def create_logger(
-    log_level: str = "INFO", logger_name: str = __name__
-) -> logging.Logger:
+def create_logger(log_level: str = "INFO", logger_name: str = __name__) -> logging.Logger:
     """
     Create a logger for AWS Lambda that outputs to CloudWatch.
 
