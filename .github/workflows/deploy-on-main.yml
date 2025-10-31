@@ -1,10 +1,9 @@
-name: Deploy Lambdas on main (code-only, .lambdaignore)
+name: Deploy Lambdas on main (code-only, .lambdaignore, delta deploy)
 
 on:
   push:
     branches: [ main ]
     paths:
-      # Trigger only when these Lambda folders (or the workflow) change
       - "src/calendar_agent/**"
       - "src/calendar_agent_api/**"
       - "src/calendar_mcp/**"
@@ -21,29 +20,24 @@ concurrency:
 
 jobs:
   changes:
-    name: Detect relevant changes
+    name: Detect changed Lambda folders
     runs-on: ubuntu-latest
     outputs:
-      deploy: ${{ steps.filter.outputs.deploy }}
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          list-files: json
           filters: |
-            deploy:
-              # Include all code under src/**
-              - 'src/**'
-              # Exclude specific config files
-              - '!src/calendar_agent/agent_config.json'
-              - '!src/calendar_agent_api/agent_api_config.json'
-              - '!src/calendar_mcp/mcp_config.json'
-              - '!src/calendar_oauth_redirect/redirect_config.json'
-              # Exclude common non-code or meta files anywhere
+            agent:
+              - 'src/calendar_agent/**'
+              - '!**/*.md'
               - '!**/.gitignore'
               - '!**/.ruffignore'
               - '!**/.mypyignore'
@@ -52,32 +46,88 @@ jobs:
               - '!**/.lambdaignore'
               - '!**/requirements.txt'
               - '!**/pyproject.toml'
-              - '!**/README.md'
-              - '!**/CERTIFICATES_README.md'
-              - '!**/INSTALL_README.md'
+              - '!src/calendar_agent/agent_config.json'
+            agent_api:
+              - 'src/calendar_agent_api/**'
+              - '!**/*.md'
+              - '!**/.gitignore'
+              - '!**/.ruffignore'
+              - '!**/.mypyignore'
+              - '!**/.mypy.toml'
+              - '!**/.ruff.toml'
+              - '!**/.lambdaignore'
+              - '!**/requirements.txt'
+              - '!**/pyproject.toml'
+              - '!src/calendar_agent_api/agent_api_config.json'
               - '!**/fast_api_server.py'
               - '!**/fast_api_server/**'
+            mcp:
+              - 'src/calendar_mcp/**'
+              - '!**/*.md'
+              - '!**/.gitignore'
+              - '!**/.ruffignore'
+              - '!**/.mypyignore'
+              - '!**/.mypy.toml'
+              - '!**/.ruff.toml'
+              - '!**/.lambdaignore'
+              - '!**/requirements.txt'
+              - '!**/pyproject.toml'
+              - '!src/calendar_mcp/mcp_config.json'
+            oauth_redirect:
+              - 'src/calendar_oauth_redirect/**'
+              - '!**/*.md'
+              - '!**/.gitignore'
+              - '!**/.ruffignore'
+              - '!**/.mypyignore'
+              - '!**/.mypy.toml'
+              - '!**/.ruff.toml'
+              - '!**/.lambdaignore'
+              - '!**/requirements.txt'
+              - '!**/pyproject.toml'
+              - '!src/calendar_oauth_redirect/redirect_config.json'
+
+      - name: Build dynamic matrix from changed folders
+        id: build-matrix
+        run: |
+          MATRIX='[]'
+          add() { MATRIX=$(jq -c --arg p "$1" --arg n "$2" '. + [{path:$p,name:$n}]' <<<"$MATRIX"); }
+
+          if [[ "${{ steps.filter.outputs.agent }}" == 'true' ]]; then
+            add "src/calendar_agent" "calendar_agent"
+          fi
+          if [[ "${{ steps.filter.outputs.agent_api }}" == 'true' ]]; then
+            add "src/calendar_agent_api" "calendar_agent_api"
+          fi
+          if [[ "${{ steps.filter.outputs.mcp }}" == 'true' ]]; then
+            add "src/calendar_mcp" "calendar_mcp"
+          fi
+          if [[ "${{ steps.filter.outputs.oauth_redirect }}" == 'true' ]]; then
+            add "src/calendar_oauth_redirect" "calendar_oauth_redirect"
+          fi
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          if [[ "$MATRIX" == "[]" ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No deploy-worthy changes."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Deploying these functions: $MATRIX"
+          fi
 
   deploy:
-    name: Deploy Lambdas
+    name: Deploy changed Lambdas
     needs: changes
-    if: needs.changes.outputs.deploy == 'true'
+    if: needs.changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
-
     strategy:
       fail-fast: false
       matrix:
-        lambda:
-          - { path: "src/calendar_agent",             name: "calendar_agent" }
-          - { path: "src/calendar_agent_api",         name: "calendar_agent_api" }
-          - { path: "src/calendar_mcp",               name: "calendar_mcp" }
-          - { path: "src/calendar_oauth_redirect",    name: "calendar_oauth_redirect" }
+        include: ${{ fromJson(needs.changes.outputs.matrix) }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -86,7 +136,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Zip code using .lambdaignore (no deps; using Layers)
-        working-directory: ${{ matrix.lambda.path }}
+        working-directory: ${{ matrix.path }}
         shell: bash
         run: |
           set -euo pipefail
@@ -101,11 +151,9 @@ jobs:
               EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
-
-          # Portable baseline excludes for zip
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
 
-          OUT_ZIP="${{ github.workspace }}/package-${{ matrix.lambda.name }}.zip"
+          OUT_ZIP="${{ github.workspace }}/package-${{ matrix.name }}.zip"
           rm -f "$OUT_ZIP"
           zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
           echo "Created $(basename "$OUT_ZIP")"
@@ -113,19 +161,10 @@ jobs:
       - name: Update Lambda code
         shell: bash
         run: |
-          ZIP="${{ github.workspace }}/package-${{ matrix.lambda.name }}.zip"
+          ZIP="${{ github.workspace }}/package-${{ matrix.name }}.zip"
           aws lambda update-function-code \
-            --function-name "${{ matrix.lambda.name }}" \
+            --function-name "${{ matrix.name }}" \
             --zip-file "fileb://${ZIP}" \
             --publish \
             --output json >/dev/null
-          echo "Updated ${{ matrix.lambda.name }}"
-
-      # Optional: quick smoke test
-      # - name: Smoke test invoke
-      #   shell: bash
-      #   run: |
-      #     aws lambda invoke \
-      #       --function-name "${{ matrix.lambda.name }}" \
-      #       --cli-binary-format raw-in-base64-out \
-      #       --payload '{}' /dev/stdout | jq -r .
+          echo "Updated ${{ matrix.name }}"
