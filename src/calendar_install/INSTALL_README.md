@@ -293,101 +293,42 @@ Each module has its own configuration file:
 - `src/calendar_agent_api/agent_api_config.json` - Calendar Agent API configuration
 - `src/calendar_oauth_redirect/redirect_config.json` - Calendar OAuth Redirect configuration
 
-#### Calendar MCP
-Run the scripts in the following order, checking for errors:
+#### Deploy Lambda Functions
+
+Run the scripts in the following order for each Lambda function, checking for errors:
 
 ```bash
 # Deploy parameters and secrets
-python aws_parameter_manager.py --config-file ../calendar_mcp/mcp_config.json
+python aws_parameter_manager.py --config-file <config-file-path>
 
 # Deploy IAM roles and policies
-python aws_iam_manager.py --config-file ../calendar_mcp/mcp_config.json
+python aws_iam_manager.py --config-file <config-file-path>
 
 # Deploy Lambda function
-python aws_lambda_manager.py --config-file ../calendar_mcp/mcp_config.json
+python aws_lambda_manager.py --config-file <config-file-path>
 
 # Deploy API Gateway routes
-python aws_api_gateway_manager.py --config-file ../calendar_mcp/mcp_config.json
+python aws_api_gateway_manager.py --config-file <config-file-path>
 ```
 
-Or run the deploy script:
+Or run the deploy script to deploy all services in sequence:
+
 ```bash
 # Deploy all of the services in sequence
-python aws_deploy.py --config-file ../calendar_mcp/mcp_config.json
+python aws_deploy.py --config-file <config-file-path>
 ```
 
-#### Calendar Agent
-Run the scripts in the following order, checking for errors:
+**Note:** Repeat the above deployment process for each of the four Lambda functions using their respective configuration files:
 
-```bash
-# Deploy parameters and secrets to AWS Parameter Store
-python aws_parameter_manager.py --config-file ../calendar_agent/agent_config.json
+1. **Calendar MCP**: `../calendar_mcp/mcp_config.json`
+2. **Calendar Agent**: `../calendar_agent/agent_config.json`
+3. **Calendar Agent API**: `../calendar_agent_api/agent_api_config.json`
+4. **Calendar OAuth Redirect**: `../calendar_oauth_redirect/redirect_config.json`
 
-# Deploy IAM roles and policies
-python aws_iam_manager.py --config-file ../calendar_agent/agent_config.json
-
-# Deploy Lambda function
-python aws_lambda_manager.py --config-file ../calendar_agent/agent_config.json
-
-# Deploy API Gateway routes
-python aws_api_gateway_manager.py --config-file ../calendar_agent/agent_config.json
-```
-
-Or run the deploy script:
-```bash
-# Deploy all of the services in sequence
-python aws_deploy.py --config-file ../calendar_agent/agent_config.json
-```
-
-#### Calendar Agent API
-Run the scripts in the following order, checking for errors:
-
-```bash
-# Deploy parameters and secrets
-python aws_parameter_manager.py --config-file ../calendar_agent_api/agent_api_config.json
-
-# Deploy IAM roles and policies
-python aws_iam_manager.py --config-file ../calendar_agent_api/agent_api_config.json
-
-# Deploy Lambda function
-python aws_lambda_manager.py --config-file ../calendar_agent_api/agent_api_config.json
-
-# Deploy API Gateway routes
-python aws_api_gateway_manager.py --config-file ../calendar_agent_api/agent_api_config.json
-```
-
-Or run the deploy script:
-```bash
-# Deploy all of the services in sequence
-python aws_deploy.py --config-file ../calendar_agent_api/agent_api_config.json
-```
-
-#### Calendar OAuth Redirect
-Run the scripts in the following order, checking for errors:
-
-```bash
-# Deploy parameters and secrets
-python aws_parameter_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
-
-# Deploy IAM roles and policies
-python aws_iam_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
-
-# Deploy Lambda function
-python aws_lambda_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
-
-# Deploy API Gateway routes
-python aws_api_gateway_manager.py --config-file ../calendar_oauth_redirect/redirect_config.json
-```
-
-Or run the deploy script:
-```bash
-# Deploy all of the services in sequence
-python aws_deploy.py --config-file ../calendar_oauth_redirect/redirect_config.json
-```
-
-#### Update Paramaters
+#### 🚧 Update Paramaters
 
 **NEED TO COMPlETE**
+
 Modify `calendar_mcp_url` and `gogole_redirect_uri`with the invoke URL for the MCP API Gateway.
 
 #### Test the AWS deployment
