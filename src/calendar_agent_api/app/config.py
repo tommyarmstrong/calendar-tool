@@ -102,7 +102,6 @@ class Config:
         """Validate that all required settings have valid values."""
         # Core required fields
         required_fields = [
-            "calendar_bearer_token",
             "redis_host",
             "redis_password",
             "redis_port",
