@@ -6,6 +6,9 @@
 *.yml
 *.yaml
 
+# Ignore GitHub workflows
+.github/
+
 # Ignore generated/cache directories
 *.egg-info/
 *.dist-info/

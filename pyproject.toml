@@ -8,6 +8,7 @@ exclude = [
     "*.log",
     "*.yml",
     "*.yaml",
+    ".github/**",
     "certificates/",
     "*.zip",
     "*.pem",
@@ -21,3 +22,9 @@ exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+# Completely ignore all checks for YAML files
+[tool.ruff.lint.per-file-ignores]
+"*.yml" = ["ALL"]
+"*.yaml" = ["ALL"]
+".github/**" = ["ALL"]

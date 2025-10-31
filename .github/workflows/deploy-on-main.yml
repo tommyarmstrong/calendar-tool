@@ -1,8 +1,9 @@
-name: Deploy Lambdas on main (code-only, .lambdaignore, per-function deploy)
+name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git diff)
 
 on:
   push:
     branches: [ main ]
+    # Only trigger when these folders (or the workflow) change.
     paths:
       - "src/calendar_agent/**"
       - "src/calendar_agent_api/**"
@@ -19,102 +20,95 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Detect changed Lambda folders
+  detect:
+    name: Detect which Lambdas changed
     runs-on: ubuntu-latest
     outputs:
-      agent:         ${{ steps.filter.outputs.agent }}
-      agent_api:     ${{ steps.filter.outputs.agent_api }}
-      mcp:           ${{ steps.filter.outputs.mcp }}
-      oauth_redirect: ${{ steps.filter.outputs.oauth_redirect }}
+      agent:         ${{ steps.set.outputs.agent }}
+      agent_api:     ${{ steps.set.outputs.agent_api }}
+      mcp:           ${{ steps.set.outputs.mcp }}
+      oauth_redirect: ${{ steps.set.outputs.oauth_redirect }}
+      changed_files: ${{ steps.set.outputs.changed_files }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # ensure proper diff
+          fetch-depth: 0  # we need history for git diff
 
-      - name: Filter changed paths
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          filters: |
-            agent:
-              - 'src/calendar_agent/**'
-              - '!**/*.md'
-              - '!**/.gitignore'
-              - '!**/.ruffignore'
-              - '!**/.mypyignore'
-              - '!**/.mypy.toml'
-              - '!**/.ruff.toml'
-              - '!**/.lambdaignore'
-              - '!**/requirements.txt'
-              - '!**/pyproject.toml'
-              - '!src/calendar_agent/agent_config.json'
-
-            agent_api:
-              - 'src/calendar_agent_api/**'
-              - '!**/*.md'
-              - '!**/.gitignore'
-              - '!**/.ruffignore'
-              - '!**/.mypyignore'
-              - '!**/.mypy.toml'
-              - '!**/.ruff.toml'
-              - '!**/.lambdaignore'
-              - '!**/requirements.txt'
-              - '!**/pyproject.toml'
-              - '!src/calendar_agent_api/agent_api_config.json'
-              - '!**/fast_api_server.py'
-              - '!**/fast_api_server/**'
-
-            mcp:
-              - 'src/calendar_mcp/**'
-              - '!**/*.md'
-              - '!**/.gitignore'
-              - '!**/.ruffignore'
-              - '!**/.mypyignore'
-              - '!**/.mypy.toml'
-              - '!**/.ruff.toml'
-              - '!**/.lambdaignore'
-              - '!**/requirements.txt'
-              - '!**/pyproject.toml'
-              - '!src/calendar_mcp/mcp_config.json'
-
-            oauth_redirect:
-              - 'src/calendar_oauth_redirect/**'
-              - '!**/*.md'
-              - '!**/.gitignore'
-              - '!**/.ruffignore'
-              - '!**/.mypyignore'
-              - '!**/.mypy.toml'
-              - '!**/.ruff.toml'
-              - '!**/.lambdaignore'
-              - '!**/requirements.txt'
-              - '!**/pyproject.toml'
-              - '!src/calendar_oauth_redirect/redirect_config.json'
-
-      - name: Debug which deploys will run
+      - name: Compute changed files
+        id: set
+        shell: bash
         run: |
-          echo "agent=${{ steps.filter.outputs.agent }}"
-          echo "agent_api=${{ steps.filter.outputs.agent_api }}"
-          echo "mcp=${{ steps.filter.outputs.mcp }}"
-          echo "oauth_redirect=${{ steps.filter.outputs.oauth_redirect }}"
+          set -euo pipefail
+
+          BEFORE="${{ github.event.before }}"
+          SHA="${{ github.sha }}"
+
+          # Handle first push / force-push edge cases
+          if [[ "$BEFORE" == "0000000000000000000000000000000000000000" || -z "$BEFORE" ]]; then
+            BEFORE="$(git rev-list -n 2 HEAD | tail -1)"
+          fi
+
+          # List changed files
+          CHANGED="$(git diff --name-only "$BEFORE" "$SHA" || true)"
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Common exclude regex (markdown + config + ignores)
+          EXCLUDE='(\.md$|(^|/)README\.md$|(^|/)\.gitignore$|(^|/)\.ruffignore$|(^|/)\.mypyignore$|(^|/)\.mypy\.toml$|(^|/)\.ruff\.toml$|(^|/)\.lambdaignore$|(^|/)requirements\.txt$|(^|/)pyproject\.toml$)'
+
+          # Function-specific excludes
+          EXCL_AGENT='(^|/)src/calendar_agent/agent_config\.json$'
+          EXCL_AGENT_API='(^|/)src/calendar_agent_api/agent_api_config\.json$|(^|/)(fast_api_server\.py|fast_api_server/)'
+          EXCL_MCP='(^|/)src/calendar_mcp/mcp_config\.json$'
+          EXCL_OAUTH='(^|/)src/calendar_oauth_redirect/redirect_config\.json$'
+
+          # Helper: returns true if files changed in path P and not excluded
+          changed_in() {
+            local PATH_PREFIX="$1"
+            local EXTRA_EXCL="$2"
+            echo "$CHANGED" | grep -E "^${PATH_PREFIX}/" | grep -Ev "$EXCLUDE|$EXTRA_EXCL" >/dev/null
+          }
+
+          AGENT=false
+          AGENT_API=false
+          MCP=false
+          OAUTH=false
+
+          changed_in "src/calendar_agent" "$EXCL_AGENT" && AGENT=true
+          changed_in "src/calendar_agent_api" "$EXCL_AGENT_API" && AGENT_API=true
+          changed_in "src/calendar_mcp" "$EXCL_MCP" && MCP=true
+          changed_in "src/calendar_oauth_redirect" "$EXCL_OAUTH" && OAUTH=true
+
+          echo "agent=$AGENT" >> "$GITHUB_OUTPUT"
+          echo "agent_api=$AGENT_API" >> "$GITHUB_OUTPUT"
+          echo "mcp=$MCP" >> "$GITHUB_OUTPUT"
+          echo "oauth_redirect=$OAUTH" >> "$GITHUB_OUTPUT"
+
+          # For debugging: emit JSON array of changed files
+          printf '%s\n' "$CHANGED" | jq -R -s 'split("\n") - [""]' > changed.json
+          echo "changed_files=$(cat changed.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Debug summary
+        run: |
+          echo "agent=${{ steps.set.outputs.agent }}"
+          echo "agent_api=${{ steps.set.outputs.agent_api }}"
+          echo "mcp=${{ steps.set.outputs.mcp }}"
+          echo "oauth_redirect=${{ steps.set.outputs.oauth_redirect }}"
+          echo "Changed files JSON: ${{ steps.set.outputs.changed_files }}"
 
   deploy_agent:
     name: Deploy calendar_agent
-    needs: changes
-    if: needs.changes.outputs.agent == 'true'
+    needs: detect
+    if: needs.detect.outputs.agent == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure AWS (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Zip code using .lambdaignore
         working-directory: src/calendar_agent
         shell: bash
@@ -124,30 +118,21 @@ jobs:
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] && continue
-              [[ "$line" =~ ^# ]] && continue
-              EXCLUDES+=(-x "$line")
+              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
           OUT_ZIP="${{ github.workspace }}/package-calendar_agent.zip"
-          rm -f "$OUT_ZIP"
-          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
-
+          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
       - name: Update Lambda code
         run: |
-          ZIP="${{ github.workspace }}/package-calendar_agent.zip"
-          aws lambda update-function-code \
-            --function-name "calendar_agent" \
-            --zip-file "fileb://${ZIP}" \
-            --publish \
-            --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_agent" --zip-file "fileb://${{ github.workspace }}/package-calendar_agent.zip" --publish --output json >/dev/null
           echo "Updated calendar_agent"
 
   deploy_agent_api:
     name: Deploy calendar_agent_api
-    needs: changes
-    if: needs.changes.outputs.agent_api == 'true'
+    needs: detect
+    if: needs.detect.outputs.agent_api == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
@@ -166,30 +151,21 @@ jobs:
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] && continue
-              [[ "$line" =~ ^# ]] && continue
-              EXCLUDES+=(-x "$line")
+              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
           OUT_ZIP="${{ github.workspace }}/package-calendar_agent_api.zip"
-          rm -f "$OUT_ZIP"
-          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
-
+          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
       - name: Update Lambda code
         run: |
-          ZIP="${{ github.workspace }}/package-calendar_agent_api.zip"
-          aws lambda update-function-code \
-            --function-name "calendar_agent_api" \
-            --zip-file "fileb://${ZIP}" \
-            --publish \
-            --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_agent_api" --zip-file "fileb://${{ github.workspace }}/package-calendar_agent_api.zip" --publish --output json >/dev/null
           echo "Updated calendar_agent_api"
 
   deploy_mcp:
     name: Deploy calendar_mcp
-    needs: changes
-    if: needs.changes.outputs.mcp == 'true'
+    needs: detect
+    if: needs.detect.outputs.mcp == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
@@ -208,30 +184,21 @@ jobs:
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] && continue
-              [[ "$line" =~ ^# ]] && continue
-              EXCLUDES+=(-x "$line")
+              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
           OUT_ZIP="${{ github.workspace }}/package-calendar_mcp.zip"
-          rm -f "$OUT_ZIP"
-          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
-
+          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
       - name: Update Lambda code
         run: |
-          ZIP="${{ github.workspace }}/package-calendar_mcp.zip"
-          aws lambda update-function-code \
-            --function-name "calendar_mcp" \
-            --zip-file "fileb://${ZIP}" \
-            --publish \
-            --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_mcp" --zip-file "fileb://${{ github.workspace }}/package-calendar_mcp.zip" --publish --output json >/dev/null
           echo "Updated calendar_mcp"
 
   deploy_oauth_redirect:
     name: Deploy calendar_oauth_redirect
-    needs: changes
-    if: needs.changes.outputs.oauth_redirect == 'true'
+    needs: detect
+    if: needs.detect.outputs.oauth_redirect == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
@@ -250,22 +217,13 @@ jobs:
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] && continue
-              [[ "$line" =~ ^# ]] && continue
-              EXCLUDES+=(-x "$line")
+              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
           OUT_ZIP="${{ github.workspace }}/package-calendar_oauth_redirect.zip"
-          rm -f "$OUT_ZIP"
-          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
-
+          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
       - name: Update Lambda code
         run: |
-          ZIP="${{ github.workspace }}/package-calendar_oauth_redirect.zip"
-          aws lambda update-function-code \
-            --function-name "calendar_oauth_redirect" \
-            --zip-file "fileb://${ZIP}" \
-            --publish \
-            --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_oauth_redirect" --zip-file "fileb://${{ github.workspace }}/package-calendar_oauth_redirect.zip" --publish --output json >/dev/null
           echo "Updated calendar_oauth_redirect"
