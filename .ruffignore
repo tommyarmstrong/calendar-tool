@@ -3,6 +3,8 @@
 *.txt
 *.json
 *.log
+*.yml
+*.yaml
 
 # Ignore generated/cache directories
 *.egg-info/

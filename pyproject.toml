@@ -6,6 +6,8 @@ exclude = [
     "*.txt",
     "*.json",
     "*.log",
+    "*.yml",
+    "*.yaml",
     "certificates/",
     "*.zip",
     "*.pem",
