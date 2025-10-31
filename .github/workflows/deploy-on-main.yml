@@ -1,4 +1,4 @@
-name: Deploy Lambdas on main (code-only, .lambdaignore, delta deploy)
+name: Deploy Lambdas on main (code-only, .lambdaignore, per-function deploy)
 
 on:
   push:
@@ -23,17 +23,20 @@ jobs:
     name: Detect changed Lambda folders
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
-      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
+      agent:         ${{ steps.filter.outputs.agent }}
+      agent_api:     ${{ steps.filter.outputs.agent_api }}
+      mcp:           ${{ steps.filter.outputs.mcp }}
+      oauth_redirect: ${{ steps.filter.outputs.oauth_redirect }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ensure proper diff
 
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          list-files: json
           filters: |
             agent:
               - 'src/calendar_agent/**'
@@ -47,6 +50,7 @@ jobs:
               - '!**/requirements.txt'
               - '!**/pyproject.toml'
               - '!src/calendar_agent/agent_config.json'
+
             agent_api:
               - 'src/calendar_agent_api/**'
               - '!**/*.md'
@@ -61,6 +65,7 @@ jobs:
               - '!src/calendar_agent_api/agent_api_config.json'
               - '!**/fast_api_server.py'
               - '!**/fast_api_server/**'
+
             mcp:
               - 'src/calendar_mcp/**'
               - '!**/*.md'
@@ -73,6 +78,7 @@ jobs:
               - '!**/requirements.txt'
               - '!**/pyproject.toml'
               - '!src/calendar_mcp/mcp_config.json'
+
             oauth_redirect:
               - 'src/calendar_oauth_redirect/**'
               - '!**/*.md'
@@ -86,46 +92,20 @@ jobs:
               - '!**/pyproject.toml'
               - '!src/calendar_oauth_redirect/redirect_config.json'
 
-      - name: Build dynamic matrix from changed folders
-        id: build-matrix
+      - name: Debug which deploys will run
         run: |
-          MATRIX='[]'
-          add() { MATRIX=$(jq -c --arg p "$1" --arg n "$2" '. + [{path:$p,name:$n}]' <<<"$MATRIX"); }
+          echo "agent=${{ steps.filter.outputs.agent }}"
+          echo "agent_api=${{ steps.filter.outputs.agent_api }}"
+          echo "mcp=${{ steps.filter.outputs.mcp }}"
+          echo "oauth_redirect=${{ steps.filter.outputs.oauth_redirect }}"
 
-          if [[ "${{ steps.filter.outputs.agent }}" == 'true' ]]; then
-            add "src/calendar_agent" "calendar_agent"
-          fi
-          if [[ "${{ steps.filter.outputs.agent_api }}" == 'true' ]]; then
-            add "src/calendar_agent_api" "calendar_agent_api"
-          fi
-          if [[ "${{ steps.filter.outputs.mcp }}" == 'true' ]]; then
-            add "src/calendar_mcp" "calendar_mcp"
-          fi
-          if [[ "${{ steps.filter.outputs.oauth_redirect }}" == 'true' ]]; then
-            add "src/calendar_oauth_redirect" "calendar_oauth_redirect"
-          fi
-
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          if [[ "$MATRIX" == "[]" ]]; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "No deploy-worthy changes."
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "Deploying these functions: $MATRIX"
-          fi
-
-  deploy:
-    name: Deploy changed Lambdas
+  deploy_agent:
+    name: Deploy calendar_agent
     needs: changes
-    if: needs.changes.outputs.has_changes == 'true'
+    if: needs.changes.outputs.agent == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJson(needs.changes.outputs.matrix) }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -135,36 +115,157 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Zip code using .lambdaignore (no deps; using Layers)
-        working-directory: ${{ matrix.path }}
+      - name: Zip code using .lambdaignore
+        working-directory: src/calendar_agent
         shell: bash
         run: |
           set -euo pipefail
-
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
-              line="${line#"${line%%[![:space:]]*}"}"
-              line="${line%"${line##*[![:space:]]}"}"
+              line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
               [ -z "$line" ] && continue
               [[ "$line" =~ ^# ]] && continue
               EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
-
-          OUT_ZIP="${{ github.workspace }}/package-${{ matrix.name }}.zip"
+          OUT_ZIP="${{ github.workspace }}/package-calendar_agent.zip"
           rm -f "$OUT_ZIP"
           zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
-          echo "Created $(basename "$OUT_ZIP")"
 
       - name: Update Lambda code
-        shell: bash
         run: |
-          ZIP="${{ github.workspace }}/package-${{ matrix.name }}.zip"
+          ZIP="${{ github.workspace }}/package-calendar_agent.zip"
           aws lambda update-function-code \
-            --function-name "${{ matrix.name }}" \
+            --function-name "calendar_agent" \
             --zip-file "fileb://${ZIP}" \
             --publish \
             --output json >/dev/null
-          echo "Updated ${{ matrix.name }}"
+          echo "Updated calendar_agent"
+
+  deploy_agent_api:
+    name: Deploy calendar_agent_api
+    needs: changes
+    if: needs.changes.outputs.agent_api == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Zip code using .lambdaignore
+        working-directory: src/calendar_agent_api
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXCLUDES=()
+          if [ -f .lambdaignore ]; then
+            while IFS= read -r line || [ -n "$line" ]; do
+              line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
+            done < .lambdaignore
+          fi
+          EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+          OUT_ZIP="${{ github.workspace }}/package-calendar_agent_api.zip"
+          rm -f "$OUT_ZIP"
+          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+
+      - name: Update Lambda code
+        run: |
+          ZIP="${{ github.workspace }}/package-calendar_agent_api.zip"
+          aws lambda update-function-code \
+            --function-name "calendar_agent_api" \
+            --zip-file "fileb://${ZIP}" \
+            --publish \
+            --output json >/dev/null
+          echo "Updated calendar_agent_api"
+
+  deploy_mcp:
+    name: Deploy calendar_mcp
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Zip code using .lambdaignore
+        working-directory: src/calendar_mcp
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXCLUDES=()
+          if [ -f .lambdaignore ]; then
+            while IFS= read -r line || [ -n "$line" ]; do
+              line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
+            done < .lambdaignore
+          fi
+          EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+          OUT_ZIP="${{ github.workspace }}/package-calendar_mcp.zip"
+          rm -f "$OUT_ZIP"
+          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+
+      - name: Update Lambda code
+        run: |
+          ZIP="${{ github.workspace }}/package-calendar_mcp.zip"
+          aws lambda update-function-code \
+            --function-name "calendar_mcp" \
+            --zip-file "fileb://${ZIP}" \
+            --publish \
+            --output json >/dev/null
+          echo "Updated calendar_mcp"
+
+  deploy_oauth_redirect:
+    name: Deploy calendar_oauth_redirect
+    needs: changes
+    if: needs.changes.outputs.oauth_redirect == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Zip code using .lambdaignore
+        working-directory: src/calendar_oauth_redirect
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXCLUDES=()
+          if [ -f .lambdaignore ]; then
+            while IFS= read -r line || [ -n "$line" ]; do
+              line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
+            done < .lambdaignore
+          fi
+          EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+          OUT_ZIP="${{ github.workspace }}/package-calendar_oauth_redirect.zip"
+          rm -f "$OUT_ZIP"
+          zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+
+      - name: Update Lambda code
+        run: |
+          ZIP="${{ github.workspace }}/package-calendar_oauth_redirect.zip"
+          aws lambda update-function-code \
+            --function-name "calendar_oauth_redirect" \
+            --zip-file "fileb://${ZIP}" \
+            --publish \
+            --output json >/dev/null
+          echo "Updated calendar_oauth_redirect"
