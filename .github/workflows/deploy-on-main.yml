@@ -3,6 +3,13 @@ name: Deploy Lambdas on main (code-only, .lambdaignore)
 on:
   push:
     branches: [ main ]
+    paths:
+      # Trigger only when these Lambda folders (or the workflow) change
+      - "src/calendar_agent/**"
+      - "src/calendar_agent_api/**"
+      - "src/calendar_mcp/**"
+      - "src/calendar_oauth_redirect/**"
+      - ".github/workflows/deploy-on-main.yml"
 
 permissions:
   contents: read
