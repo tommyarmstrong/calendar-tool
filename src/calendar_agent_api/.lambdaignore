@@ -1,0 +1,38 @@
+# Single files in this function
+agent_api_config.json
+pyproject.toml
+requirements.txt
+.lambdaignore
+.gitignore
+.ruffignore
+.mypyignore
+.mypy.toml
+.ruff.toml
+
+# Docs anywhere under this function
+README.md
+CERTIFICATES_README.md
+INSTALL_README.md
+
+# API server code (file or dir) anywhere under this function
+fast_api_server.py
+fast_api_server/*
+
+# Certificates / logs / binaries anywhere
+certificates/*
+logs/*
+*.b64
+*.crt
+*.key
+*.log
+*.p12
+*.pem
+*.zip
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Misc
+.DS_Store
+.git/**
