@@ -182,10 +182,11 @@ Configuration is managed through AWS Parameter Store (production) or environment
 
 When contributing to this project:
 
-1. Follow the existing code style (4 spaces, type hints required)
-2. Use Ruff and MyPy for linting and formatting
-3. Ensure all functions have comprehensive docstrings
-4. Test both local and AWS deployment scenarios
+1. Follow the existing code style
+2. Following the existing file structures
+3. Recommended Ruff and MyPy for linting and formatting
+4. Test both local and AWS deployment scenarios, if applicable
+5. Test both client and Slack entrypoint scenarios, if applicable
 
 ### Development Workflow
 
