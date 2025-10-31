@@ -19,3 +19,4 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
 # Change 1: Testing integration of Github and AWS with minor code change.
 # Change 2
+# Change 3
