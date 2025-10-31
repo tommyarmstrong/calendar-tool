@@ -3,36 +3,58 @@ name: Deploy Lambdas on main (code-only, .lambdaignore)
 on:
   push:
     branches: [ main ]
-    paths:
-      - "src/**"
-      - ".github/workflows/deploy-on-main.yml"
-    paths-ignore:
-      # ignore specific config files
-      - "src/calendar_agent/agent_config.json"
-      - "src/calendar_agent_api/agent_api_config.json"
-      - "src/calendar_mcp/mcp_config.json"
-      - "src/calendar_oauth_redirect/redirect_config.json"
-      # ignore any non-code files anywhere
-      - "**/.gitignore"
-      - "**/.ruffignore"
-      - "**/.mypyignore"
-      - "**/.mypy.toml"
-      - "**/.ruff.toml"
-      - "**/.lambdaignore"
-      - "**/requirements.txt"
-      - "**/pyproject.toml"
-      - "**/README.md"
-      - "**/CERTIFICATES_README.md"
-      - "**/INSTALL_README.md"
-      - "**/fast_api_server.py"
-      - "**/fast_api_server/**"
 
 permissions:
   contents: read
   id-token: write
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.filter.outputs.deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            deploy:
+              # Include all code under src/**
+              - 'src/**'
+              # Exclude specific config files
+              - '!src/calendar_agent/agent_config.json'
+              - '!src/calendar_agent_api/agent_api_config.json'
+              - '!src/calendar_mcp/mcp_config.json'
+              - '!src/calendar_oauth_redirect/redirect_config.json'
+              # Exclude common non-code or meta files anywhere
+              - '!**/.gitignore'
+              - '!**/.ruffignore'
+              - '!**/.mypyignore'
+              - '!**/.mypy.toml'
+              - '!**/.ruff.toml'
+              - '!**/.lambdaignore'
+              - '!**/requirements.txt'
+              - '!**/pyproject.toml'
+              - '!**/README.md'
+              - '!**/CERTIFICATES_README.md'
+              - '!**/INSTALL_README.md'
+              - '!**/fast_api_server.py'
+              - '!**/fast_api_server/**'
+
   deploy:
+    name: Deploy Lambdas
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     env:
       AWS_REGION: us-east-1
@@ -91,3 +113,12 @@ jobs:
             --publish \
             --output json >/dev/null
           echo "Updated ${{ matrix.lambda.name }}"
+
+      # Optional: quick smoke test
+      # - name: Smoke test invoke
+      #   shell: bash
+      #   run: |
+      #     aws lambda invoke \
+      #       --function-name "${{ matrix.lambda.name }}" \
+      #       --cli-binary-format raw-in-base64-out \
+      #       --payload '{}' /dev/stdout | jq -r .
