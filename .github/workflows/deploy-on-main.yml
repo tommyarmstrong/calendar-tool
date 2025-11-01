@@ -1,4 +1,4 @@
-name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git diff)
+name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git diff + aws_platform_manager rename)
 
 on:
   push:
@@ -106,24 +106,48 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Zip code using .lambdaignore
+
+      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
         working-directory: src/calendar_agent
         shell: bash
         run: |
           set -euo pipefail
+
+          STAGE="$(mktemp -d)"
+          rsync -a ./ "$STAGE"/
+
+          # Ensure local- and pre-existing platform managers are not shipped
+          rm -f "$STAGE/infrastructure/platform_manager.py" \
+                "$STAGE/infrastructure/local_platform_manager.py"
+
+          # If AWS variant exists, ship it under the common name
+          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
+            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+               "$STAGE/infrastructure/platform_manager.py"
+            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+          fi
+
+          # Build zip excludes from .lambdaignore + baseline
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+
           OUT_ZIP="${{ github.workspace }}/package-calendar_agent.zip"
-          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+          rm -f "$OUT_ZIP"
+          (cd "$STAGE" && zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}")
+
       - name: Update Lambda code
         run: |
-          aws lambda update-function-code --function-name "calendar_agent" --zip-file "fileb://${{ github.workspace }}/package-calendar_agent.zip" --publish --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_agent" \
+            --zip-file "fileb://${{ github.workspace }}/package-calendar_agent.zip" \
+            --publish --output json >/dev/null
           echo "Updated calendar_agent"
 
   deploy_agent_api:
@@ -139,24 +163,45 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Zip code using .lambdaignore
+
+      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
         working-directory: src/calendar_agent_api
         shell: bash
         run: |
           set -euo pipefail
+
+          STAGE="$(mktemp -d)"
+          rsync -a ./ "$STAGE"/
+
+          rm -f "$STAGE/infrastructure/platform_manager.py" \
+                "$STAGE/infrastructure/local_platform_manager.py"
+
+          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
+            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+               "$STAGE/infrastructure/platform_manager.py"
+            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+          fi
+
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+
           OUT_ZIP="${{ github.workspace }}/package-calendar_agent_api.zip"
-          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+          rm -f "$OUT_ZIP"
+          (cd "$STAGE" && zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}")
+
       - name: Update Lambda code
         run: |
-          aws lambda update-function-code --function-name "calendar_agent_api" --zip-file "fileb://${{ github.workspace }}/package-calendar_agent_api.zip" --publish --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_agent_api" \
+            --zip-file "fileb://${{ github.workspace }}/package-calendar_agent_api.zip" \
+            --publish --output json >/dev/null
           echo "Updated calendar_agent_api"
 
   deploy_mcp:
@@ -172,24 +217,45 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Zip code using .lambdaignore
+
+      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
         working-directory: src/calendar_mcp
         shell: bash
         run: |
           set -euo pipefail
+
+          STAGE="$(mktemp -d)"
+          rsync -a ./ "$STAGE"/
+
+          rm -f "$STAGE/infrastructure/platform_manager.py" \
+                "$STAGE/infrastructure/local_platform_manager.py"
+
+          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
+            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+               "$STAGE/infrastructure/platform_manager.py"
+            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+          fi
+
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+
           OUT_ZIP="${{ github.workspace }}/package-calendar_mcp.zip"
-          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+          rm -f "$OUT_ZIP"
+          (cd "$STAGE" && zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}")
+
       - name: Update Lambda code
         run: |
-          aws lambda update-function-code --function-name "calendar_mcp" --zip-file "fileb://${{ github.workspace }}/package-calendar_mcp.zip" --publish --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_mcp" \
+            --zip-file "fileb://${{ github.workspace }}/package-calendar_mcp.zip" \
+            --publish --output json >/dev/null
           echo "Updated calendar_mcp"
 
   deploy_oauth_redirect:
@@ -205,22 +271,43 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Zip code using .lambdaignore
+
+      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
         working-directory: src/calendar_oauth_redirect
         shell: bash
         run: |
           set -euo pipefail
+
+          STAGE="$(mktemp -d)"
+          rsync -a ./ "$STAGE"/
+
+          rm -f "$STAGE/infrastructure/platform_manager.py" \
+                "$STAGE/infrastructure/local_platform_manager.py"
+
+          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
+            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+               "$STAGE/infrastructure/platform_manager.py"
+            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+          fi
+
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
             while IFS= read -r line || [ -n "$line" ]; do
               line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
-              [ -z "$line" ] || [[ "$line" =~ ^# ]] || EXCLUDES+=(-x "$line")
+              [ -z "$line" ] && continue
+              [[ "$line" =~ ^# ]] && continue
+              EXCLUDES+=(-x "$line")
             done < .lambdaignore
           fi
           EXCLUDES+=(-x "*/__pycache__/*" -x "*.pyc" -x ".DS_Store" -x ".git/**")
+
           OUT_ZIP="${{ github.workspace }}/package-calendar_oauth_redirect.zip"
-          rm -f "$OUT_ZIP"; zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}"
+          rm -f "$OUT_ZIP"
+          (cd "$STAGE" && zip -r9 "$OUT_ZIP" . "${EXCLUDES[@]}")
+
       - name: Update Lambda code
         run: |
-          aws lambda update-function-code --function-name "calendar_oauth_redirect" --zip-file "fileb://${{ github.workspace }}/package-calendar_oauth_redirect.zip" --publish --output json >/dev/null
+          aws lambda update-function-code --function-name "calendar_oauth_redirect" \
+            --zip-file "fileb://${{ github.workspace }}/package-calendar_oauth_redirect.zip" \
+            --publish --output json >/dev/null
           echo "Updated calendar_oauth_redirect"
