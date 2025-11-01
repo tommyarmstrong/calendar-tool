@@ -39,6 +39,14 @@ def hmac_headers_for_get(path: str) -> dict[str, str]:
     path_only = path.split("?", 1)[0] if "?" in path else path
     canonical = f"{ts}\n{nonce}\nGET\n{path_only}\n"
     sig = _b64_hmac_sha256(secret.encode("utf-8"), canonical.encode("utf-8"))
+
+    print(f"ts: {ts}")
+    print(f"nonce: {nonce}")
+    print(f"path_only: {path_only}")
+    print(f"secret: {secret}")
+    print(f"canonical: {canonical}")
+    print(f"sig: {sig}")
+
     return {
         "X-Agent-Id": agent_id,
         "X-Agent-Timestamp": str(ts),
@@ -70,9 +78,6 @@ def hmac_headers_for_post(path: str, body_bytes: bytes) -> dict[str, str]:
         f"{ts}\n{nonce}\nPOST\n{path_only}\n{body_bytes.decode('utf-8') if body_bytes else ''}"
     )
     sig = _b64_hmac_sha256(secret.encode("utf-8"), canonical.encode("utf-8"))
-
-    print(f"canonical: {canonical}")
-    print(f"sig: {sig}")
 
     return {
         "X-Agent-Id": agent_id,
