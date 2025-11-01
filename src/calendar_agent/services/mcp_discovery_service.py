@@ -22,6 +22,7 @@ def _get(path: str) -> Any:
     # Add HMAC headers (does not overwrite existing keys)
     hmac_headers = hmac_headers_for_get(path)
     headers = {**base_headers, **hmac_headers}
+    print(f"headers: {headers}")
 
     try:
         resp = session.get(url, headers=headers, timeout=_TIMEOUT, verify=requests_verify_setting())
