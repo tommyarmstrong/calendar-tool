@@ -15,3 +15,6 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         traceback.print_exc()
         raise Exception(f"Error in processing Calendar Agent: {e}") from e
+
+
+# Change 1: Test the changes to CI/CD pipeline
