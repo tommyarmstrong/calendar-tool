@@ -1,5 +1,5 @@
 # Single files in this function
-redirect_config.json
+agent_config.json
 pyproject.toml
 requirements.txt
 .lambdaignore
@@ -17,6 +17,10 @@ INSTALL_README.md
 # API server code (file or dir) anywhere under this function
 fast_api_server.py
 fast_api_server/*
+
+# Local platform managers
+infrastructure/platform_manager.py
+infrastructure/local_platform_manager.py
 
 # Certificates / logs / binaries anywhere
 certificates/*
