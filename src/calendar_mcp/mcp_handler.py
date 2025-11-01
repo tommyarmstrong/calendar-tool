@@ -12,3 +12,6 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return result
     except Exception as e:
         raise Exception(f"Error in processing Calendar MCP: {e}") from e
+
+
+# Change 1: Test the changes to CI/CD pipeline
