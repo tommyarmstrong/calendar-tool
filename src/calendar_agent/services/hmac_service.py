@@ -71,6 +71,9 @@ def hmac_headers_for_post(path: str, body_bytes: bytes) -> dict[str, str]:
     )
     sig = _b64_hmac_sha256(secret.encode("utf-8"), canonical.encode("utf-8"))
 
+    print(f"canonical: {canonical}")
+    print(f"sig: {sig}")
+
     return {
         "X-Agent-Id": agent_id,
         "X-Agent-Timestamp": str(ts),
