@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import time
 
+from services.redis_services import is_nonce_unique
+
 HMAC_CLOCK_SKEW = 300  # ±5 minutes
 
 
@@ -38,11 +40,21 @@ def verify_hmac_signature(
     try:
         ts = int(ts_str)
     except Exception:
-        return False, "bad_timestamp"
+        return False, "bad_timestamp - Invalid timestamp was provided."
 
     now = int(now or time.time())
-    if abs(now - ts) > HMAC_CLOCK_SKEW:
-        return False, "timestamp_skew"
+
+    time_delta = abs(now - ts)
+    if time_delta > HMAC_CLOCK_SKEW:
+        msg = (
+            f"timestamp_skew - Time between server and client is {time_delta} seconds. "
+            + "This could be a replay attack."
+        )
+        return False, msg
+
+    # Check nonce is unique - to prevent replay attacks
+    if not is_nonce_unique(nonce):
+        return False, "nonce_not_unique - This could be a replay attack"
 
     body_bytes = body.encode("utf-8") if body else None
     canonical = _build_canonical(ts_str, nonce, method, path_only, body_bytes)

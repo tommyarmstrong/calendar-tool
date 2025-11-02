@@ -30,6 +30,13 @@ def _get_fernet() -> Fernet:
     return Fernet(_get_encryption_key())
 
 
+def is_nonce_unique(nonce: str) -> bool:
+    if redis.exists(f"mcp:calendar:x-agent-nonce:{nonce}"):
+        return False
+    redis.setex(f"mcp:calendar:x-agent-nonce:{nonce}", 600, "used")
+    return True
+
+
 def encrypt_sensitive_fields(
     tokens: dict[str, str | list[str] | None],
 ) -> dict[str, str | list[str] | None]:

@@ -2,7 +2,6 @@ import json
 from typing import Any, cast
 
 from app.config import get_settings
-from auth.bearer_token_auth import check_authentication
 from auth.hmac_auth import verify_hmac_signature
 from infrastructure.platform_manager import create_logger
 from mcp.manifest import manifest
@@ -53,6 +52,14 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     method, _, route = route_key.partition(" ")
     logger.info(f"Processing request: {method} {route}")
 
+    if not route:
+        logger.error("No route found")
+        return create_response(404, "Not Found")
+
+    if method not in ["GET", "POST"]:
+        logger.error("Invalid method")
+        return create_response(404, "Not Found")
+
     # Get the headers and body from the event
     body = event.get("body", {})
     headers = event.get("headers", {})
@@ -64,6 +71,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         logger.error("Missing HMAC headers")
         return create_response(401, "Missing HMAC headers")
 
+    # Validate the HMAC signature
     is_valid, reason = verify_hmac_signature(
         ts_str=timestamp,
         nonce=nonce,
@@ -77,18 +85,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     if not is_valid:
         logger.error(f"Invalid HMAC signature: {reason}")
         return create_response(401, f"Invalid HMAC signature: {reason}")
-
-    if not route:
-        logger.error("No route found")
-        return create_response(404, "Not Found")
-
-    if route.startswith("/mcp/"):
-        try:
-            check_authentication(event)
-            logger.info("Authentication successful")
-        except Exception as e:
-            logger.warning(f"Authentication failed: {e}")
-            return create_response(401, str(e))
 
     if method == "GET" and route == "/.well-known/mcp/manifest":
         logger.info("Returning manifest")
