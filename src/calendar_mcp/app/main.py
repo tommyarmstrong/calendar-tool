@@ -74,14 +74,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         secret=settings.agent_hmac_secret,
     )
 
-    logger.info(f"timestamp: {timestamp}")
-    logger.info(f"nonce: {nonce}")
-    logger.info(f"method: {method}")
-    logger.info(f"path_only: {route}")
-    logger.info(f"body: {body}")
-    logger.info(f"provided_sig_b64: {signature}")
-    logger.info(f"secret: {settings.agent_hmac_secret}")
-
     if not is_valid:
         logger.error(f"Invalid HMAC signature: {reason}")
         return create_response(401, f"Invalid HMAC signature: {reason}")
