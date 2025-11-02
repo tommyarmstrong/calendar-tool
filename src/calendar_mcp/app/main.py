@@ -85,6 +85,8 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     if not is_valid:
         logger.error(f"Invalid HMAC signature: {reason}")
         return create_response(401, f"Invalid HMAC signature: {reason}")
+    else:
+        logger.info("HMAC signature validated")
 
     if method == "GET" and route == "/.well-known/mcp/manifest":
         logger.info("Returning manifest")

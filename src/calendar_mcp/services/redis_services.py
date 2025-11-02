@@ -8,6 +8,8 @@ from app.config import GOOGLE_TOKEN_TTL, get_settings
 settings = get_settings()
 redis = Redis.from_url(settings.redis_url, decode_responses=True)
 
+_NONCE_TTL = 300  # 5 minutes
+
 # Stage-1: single local user key; Stage-2/3 key by (provider, team, user)
 USER_KEY = "mcp:calendar:oauth:user1"
 
@@ -33,7 +35,7 @@ def _get_fernet() -> Fernet:
 def is_nonce_unique(nonce: str) -> bool:
     if redis.exists(f"mcp:calendar:x-agent-nonce:{nonce}"):
         return False
-    redis.setex(f"mcp:calendar:x-agent-nonce:{nonce}", 600, "used")
+    redis.setex(f"mcp:calendar:x-agent-nonce:{nonce}", _NONCE_TTL, "used")
     return True
 
 
