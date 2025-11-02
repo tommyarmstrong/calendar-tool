@@ -11,7 +11,7 @@ from services.llm_service import plan_mcp_call
 from services.mcp_client_service import call_mcp
 from services.renderer_service import render_mcp_result
 
-logger = create_logger(logger_name="calendar-agent", log_level="INFO")
+logger = create_logger(log_level="INFO", logger_name="calendar-agent")
 logger.info("Starting Calendar Agent")
 
 

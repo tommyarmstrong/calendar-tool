@@ -23,6 +23,9 @@ redis_password = settings.redis_password
 assert redis_host is not None and redis_port is not None and redis_password is not None
 cache = RedisCache(redis_host, int(redis_port), redis_password)
 
+logger = create_logger(logger_name="calendar-agent-api", log_level="INFO")
+logger.info("Starting Calendar Agent API Service")
+
 
 def create_slack_response() -> dict[str, str]:
     """
@@ -49,8 +52,6 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     """
     Process the incoming HTTP Gateway event.
     """
-    logger = create_logger("INFO")
-    logger.info("Agent API lambda handler called")
 
     # Generate request_id
     request_id = generate_request_id()

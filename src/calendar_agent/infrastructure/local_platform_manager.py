@@ -6,7 +6,7 @@ from pathlib import Path
 def create_logger(
     log_level: str = "INFO",
     logger_name: str = "calendar-agent",
-    logs_dir: str | Path = "logs",
+    logs_dir: str | Path = "../logs",
 ) -> logging.Logger:
     """
     Create a logger that outputs to console and optionally to a file.
