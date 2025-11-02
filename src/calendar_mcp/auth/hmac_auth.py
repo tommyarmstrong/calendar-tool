@@ -16,6 +16,15 @@ def build_canonical(ts: str, nonce: str, method: str, path_only: str, body: str)
     return f"{ts}\n{nonce}\n{method.upper()}\n{path_only}\n{body}"
 
 
+def _build_canonical(
+    ts: str, nonce: str, method: str, path_only: str, body_bytes: bytes | None = None
+) -> str:
+    # The canonical string is: "{timestamp}\n{nonce}\n{METHOD}\n{PATH}\n{BODY}"
+    base_canonical = f"{ts}\n{nonce}\n{method.upper()}\n{path_only}\n"
+    body_text = body_bytes.decode('utf-8') if body_bytes is not None else ""
+    return f"{base_canonical}{body_text}"
+
+
 def verify_hmac_signature(
     ts_str: str,
     nonce: str,
@@ -44,8 +53,8 @@ def verify_hmac_signature(
     if abs(now - ts) > HMAC_CLOCK_SKEW:
         return False, "timestamp_skew"
 
-    canonical = build_canonical(ts_str, nonce, method, path_only, body)
-    expected = _b64_hmac_sha256(secret.encode(), canonical.encode())
+    canonical = _build_canonical(ts_str, nonce, method, path_only, body.encode("utf-8"))
+    expected = _b64_hmac_sha256(secret.encode("utf-8"), canonical.encode("utf-8"))
 
     print(f"canonical: {canonical}")
     print(f"expected: {expected}")

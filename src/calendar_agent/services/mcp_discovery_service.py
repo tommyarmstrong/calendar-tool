@@ -5,7 +5,7 @@ from typing import Any
 from app.config import REDIS_CACHE_PATH, REDIS_CACHE_TTL, get_settings
 from infrastructure.platform_manager import requests_verify_setting
 from services.cache_service import RedisCache
-from services.hmac_service import hmac_headers_for_get
+from services.hmac_service import hmac_headers_for_request
 from services.response_helpers import session_with_pkcs12
 
 _TIMEOUT = 15
@@ -20,7 +20,7 @@ def _get(path: str) -> Any:
     url = f"{settings.calendar_mcp_url}{path}"
 
     # Add HMAC headers (does not overwrite existing keys)
-    hmac_headers = hmac_headers_for_get(path)
+    hmac_headers = hmac_headers_for_request(path, "GET")
     headers = {**base_headers, **hmac_headers}
     print(f"headers: {headers}")
 
