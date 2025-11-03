@@ -1,5 +1,5 @@
 # Single files in this function
-agent_config.json
+redirect_config.json
 pyproject.toml
 requirements.txt
 .lambdaignore
