@@ -15,10 +15,10 @@
     "app/main.py",
     "auth/__init__.py",
     "auth/google_oauth.py",
-    "infrastructure/__init__.py",
-    "infrastructure/platform_manager.py",
-    "services/__init__.py",
-    "services/redis_services.py"
+    "shared_infrastructure/__init__.py",
+    "shared_infrastructure/platform_manager.py",
+    "shared_infrastructure/redis_manager.py",
+    "shared_infrastructure/cryptography_manager.py"
   ],
   "layers": [
     {

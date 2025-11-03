@@ -18,11 +18,10 @@
     "auth/__init__.py",
     "auth/client_auth.py",
     "auth/slack_auth.py",
-    "infrastructure/__init__.py",
-    "infrastructure/platform_manager.py",
-    "services/__init__.py",
-    "services/cache_service.py"
-  ],
+    "shared_infrastructure/__init__.py",
+    "shared_infrastructure/platform_manager.py",
+    "shared_infrastructure/redis_manager.py"
+    ],
   "layers": [
     {
       "layer_name": "calendarAgentAPILayer",

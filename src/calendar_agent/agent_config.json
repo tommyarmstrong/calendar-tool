@@ -19,17 +19,18 @@
     "infrastructure/__init__.py",
     "infrastructure/data_models.py",
     "infrastructure/openai_gpt_manager.py",
-    "infrastructure/platform_manager.py",
     "infrastructure/slack_manager.py",
     "prompts/prompts.md",
     "services/__init__.py",
-    "services/cache_service.py",
-    "services/hmac_service.py",
     "services/llm_service.py",
     "services/mcp_client_service.py",
     "services/mcp_discovery_service.py",
     "services/renderer_service.py",
-    "services/response_helpers.py"
+    "services/requests_helpers.py",
+    "shared_infrastructure/__init__.py",
+    "shared_infrastructure/hmac_auth.py",
+    "shared_infrastructure/platform_manager.py",
+    "shared_infrastructure/redis_manager.py"
   ],
   "layers": [
     {
