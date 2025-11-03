@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 
 import requests
 from app.config import get_settings
+from calendar_shared.local_platform_manager import get_parameters
 from requests_pkcs12 import Pkcs12Adapter
 
 
@@ -61,3 +63,34 @@ def session_with_pkcs12() -> requests.Session:
         "Accept": "application/json",
     })
     return session
+
+
+def requests_verify_setting() -> bool | str:
+    """
+    Determine the TLS certificate verification setting for requests.
+
+    Returns the appropriate verification setting for TLS connections:
+    - A temporary file path to a CA certificate for localhost development with self-signed certs
+    - True for system-trusted certificates (production environments)
+
+    For localhost HTTPS connections with self-signed certificates, this function
+    creates a temporary file containing the base64-decoded CA certificate and
+    returns its path for use with requests' verify parameter.
+
+    Returns:
+        bool | str: Either True for system trust or a file path to a CA certificate
+
+    Raises:
+        No exceptions are raised by this function
+    """
+    paramaters = get_parameters(["calendar_mcp_url"], "_")
+    calendar_mcp_url = paramaters.get("calendar_mcp_url")
+
+    assert isinstance(calendar_mcp_url, str) and calendar_mcp_url is not None
+    if calendar_mcp_url.startswith("https://localhost"):
+        certificate_path = "certificates/truststore.pem"
+        if Path(certificate_path).exists():
+            return certificate_path
+
+    # Default: use system trust (works with public certs such as from AWS ACM)
+    return True

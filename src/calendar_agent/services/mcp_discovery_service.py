@@ -3,10 +3,9 @@ import uuid
 from typing import Any
 
 from app.config import REDIS_CACHE_PATH, REDIS_CACHE_TTL, get_settings
-from infrastructure.platform_manager import requests_verify_setting
 from services.cache_service import RedisCache
 from services.hmac_service import hmac_headers_for_request
-from services.response_helpers import session_with_pkcs12
+from services.requests_helpers import requests_verify_setting, session_with_pkcs12
 
 _TIMEOUT = 15
 

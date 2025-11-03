@@ -16,19 +16,6 @@ import boto3
 """ AWS Parameter Store """
 
 
-def _chunk(iterable: Iterable[str], size: int) -> Iterator[list[str]]:
-    """
-    Chunk an iterable into lists of size `size`.
-    Used for SSM get_parameters batching because the API only allows up to 10 names at a time.
-    """
-    it = iter(iterable)
-    while True:
-        chunk = list([x for _, x in zip(range(size), it, strict=False)])
-        if not chunk:
-            break
-        yield chunk
-
-
 def get_parameters(
     param_names: list[str] | str,
     base_path: str,
@@ -41,6 +28,18 @@ def get_parameters(
     Returns a dict mapping each requested leaf name to its value (or None if missing).
     """
     ssm = boto3.client("ssm", region_name=region_name)
+
+    def _chunk(iterable: Iterable[str], size: int) -> Iterator[list[str]]:
+        """
+        Chunk an iterable into lists of size `size`.
+        Used for SSM get_parameters batching because the API only allows up to 10 names at a time.
+        """
+        it = iter(iterable)
+        while True:
+            chunk = list([x for _, x in zip(range(size), it, strict=False)])
+            if not chunk:
+                break
+            yield chunk
 
     # Convert single parameter name to list
     if isinstance(param_names, str):
