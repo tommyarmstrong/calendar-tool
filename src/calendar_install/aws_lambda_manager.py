@@ -88,6 +88,14 @@ def zip_files(zip_path: Path, files: list[str]) -> None:
     special_dest = "infrastructure/platform_manager.py"
     special_src = code_directory / "infrastructure/aws_platform_manager.py"
 
+    # Map shared_infrastructure symlinked files to their real sources under src/calendar_shared
+    shared_map = {
+        "platform_manager.py": "aws_platform_manager.py",  # use AWS variant in Lambdas
+        "redis_manager.py": "redis_manager.py",
+        "hmac_auth.py": "hmac_auth.py",
+        "cryptography_manager.py": "cryptography_manager.py",
+    }
+
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for rel_file in files:
             logger.debug(f"Processing file: {rel_file}")
@@ -97,6 +105,16 @@ def zip_files(zip_path: Path, files: list[str]) -> None:
                 zf.write(special_src, arcname=rel_file)
                 logger.info(f"Substituted 'aws_platform_manager.py' → '{rel_file}' in zip")
                 continue
+
+            # Handle shared_infrastructure symlinks by copying real files from src/calendar_shared
+            if rel_file.startswith("shared_infrastructure/"):
+                name = rel_file.split("/", 1)[1]
+                src_name = shared_map.get(name, name)
+                shared_src = (code_directory.parent / "calendar_shared" / src_name).resolve()
+                if shared_src.exists():
+                    zf.write(shared_src, arcname=rel_file)
+                    logger.info(f"Injected calendar_shared/{src_name} → {rel_file} in zip")
+                    continue
 
             # Find the file in the code directory
             file_path = code_directory / rel_file
