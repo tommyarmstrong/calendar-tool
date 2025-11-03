@@ -179,8 +179,9 @@ def invoke_lambda(
     logger.debug(f"Module name: {module_name}")
     logger.debug(f"Handler function: {lambda_handler}")
 
-    # Make sure the sibling project's src wins (order matters: put module_dir first)
-    with temporarily_in_sys_path(module_dir, project_root):
+    # Make sure the sibling project's src is on sys.path (put module_dir first),
+    # and include the shared src root so sibling packages (e.g., calendar_shared) resolve.
+    with temporarily_in_sys_path(module_dir, project_root, current_project_root):
         with temporarily_change_dir(module_dir):
             try:
                 # Clear all potentially conflicting modules to ensure clean imports
@@ -212,7 +213,7 @@ def invoke_lambda(
         try:
             # Replicate import context inside the thread for any lazy imports.
             # (Threads inherit sys.modules, but sys.path order can still matter for late imports.)
-            paths_to_prepend = [str(module_dir), str(project_root)]
+            paths_to_prepend = [str(module_dir), str(project_root), str(current_project_root)]
             for p in paths_to_prepend:
                 if p not in sys.path:
                     sys.path.insert(0, p)

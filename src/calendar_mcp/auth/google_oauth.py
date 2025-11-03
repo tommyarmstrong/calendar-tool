@@ -9,7 +9,9 @@ from app.config import get_settings
 from infrastructure.redis_manager import build_redis_manager
 
 settings = get_settings()
-redis_manager = build_redis_manager(settings.redis_url)
+redis_manager = build_redis_manager(
+    settings.redis_url, token_encryption_key=settings.calendar_token_encryption_key.encode("utf-8")
+)
 
 
 def _client_config() -> dict[str, dict[str, str | list[str]]]:

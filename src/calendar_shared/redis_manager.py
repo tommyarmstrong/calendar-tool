@@ -36,7 +36,7 @@ class RedisManager:
         self,
         redis_client: Redis,
         *,
-        namespace: str = "mcp:calendar",
+        namespace: str = "calendar:mcp",
         token_encryption_key: bytes | None = None,
         default_nonce_ttl: int = 300,
         default_idem_ttl: int = 600,
