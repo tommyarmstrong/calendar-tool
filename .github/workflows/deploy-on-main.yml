@@ -8,6 +8,7 @@ on:
       - "src/calendar_agent_api/**"
       - "src/calendar_mcp/**"
       - "src/calendar_oauth_redirect/**"
+      - "src/calendar_shared/**"
       - ".github/workflows/deploy-on-main.yml"
 
 permissions:
@@ -75,6 +76,14 @@ jobs:
           changed_in "src/calendar_agent_api" "${EXCL_AGENT_API}" && AGENT_API=true
           changed_in "src/calendar_mcp" "${EXCL_MCP}" && MCP=true
           changed_in "src/calendar_oauth_redirect" "${EXCL_OAUTH}" && OAUTH=true
+
+          # If shared code changed, rebuild all lambdas
+          if echo "${CHANGED}" | grep -E "^src/calendar_shared/" >/dev/null; then
+            AGENT=true
+            AGENT_API=true
+            MCP=true
+            OAUTH=true
+          fi
 
           echo "agent=${AGENT}" >> "$GITHUB_OUTPUT"
           echo "agent_api=${AGENT_API}" >> "$GITHUB_OUTPUT"
