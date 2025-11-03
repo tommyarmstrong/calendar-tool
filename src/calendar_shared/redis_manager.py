@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Protocol, cast
 
-from cryptography.fernet import Fernet
 from redis import Redis
+
+
+class _FernetLike(Protocol):
+    def encrypt(self, data: bytes) -> bytes: ...
+    def decrypt(self, token: bytes) -> bytes: ...
 
 
 class RedisManager:
@@ -38,6 +42,7 @@ class RedisManager:
         *,
         namespace: str = "calendar:mcp",
         token_encryption_key: bytes | None = None,
+        fernet: _FernetLike | None = None,
         default_nonce_ttl: int = 300,
         default_idem_ttl: int = 600,
         default_token_ttl: int = 3600,
@@ -45,6 +50,7 @@ class RedisManager:
         self._redis: Redis = redis_client
         self._namespace: str = namespace.rstrip(":")
         self._token_encryption_key: bytes | None = token_encryption_key
+        self._fernet: _FernetLike | None = fernet
         self._default_nonce_ttl: int = default_nonce_ttl
         self._default_idem_ttl: int = default_idem_ttl
         self._default_token_ttl: int = default_token_ttl
@@ -187,19 +193,6 @@ class RedisManager:
     # -----------------------------
     # Token encryption helpers
     # -----------------------------
-    def _get_fernet(self) -> Fernet:
-        """
-        Create a Fernet cipher using the configured encryption key.
-
-        Returns:
-            Fernet: Configured Fernet instance.
-
-        Raises:
-            ValueError: If the encryption key is not configured.
-        """
-        if not self._token_encryption_key:
-            raise ValueError("Token encryption key is not configured")
-        return Fernet(self._token_encryption_key)
 
     def encrypt_sensitive_fields(
         self, tokens: dict[str, str | list[str] | None]
@@ -216,11 +209,11 @@ class RedisManager:
         if not tokens:
             return tokens
 
-        fernet = self._get_fernet()
         encrypted_tokens = tokens.copy()
         for field in ["token", "refresh_token", "client_secret"]:
             if field in tokens and tokens[field]:
                 try:
+                    fernet = cast(_FernetLike, self._fernet)
                     ciphertext = fernet.encrypt(str(tokens[field]).encode())
                     encrypted_tokens[field] = ciphertext.decode()
                 except Exception:
@@ -240,11 +233,11 @@ class RedisManager:
         if not tokens:
             return tokens
 
-        fernet = self._get_fernet()
         decrypted_tokens = tokens.copy()
         for field in ["token", "refresh_token", "client_secret"]:
             if field in tokens and tokens[field]:
                 try:
+                    fernet = cast(_FernetLike, self._fernet)
                     plaintext = fernet.decrypt(str(tokens[field]).encode())
                     decrypted_tokens[field] = plaintext.decode()
                 except Exception:
@@ -312,6 +305,7 @@ def build_redis_manager(
     redis_client: Redis | None = None,
     namespace: str = "mcp:calendar",
     token_encryption_key: bytes | None = None,
+    fernet: Any | None = None,
     default_nonce_ttl: int = 300,
     default_idem_ttl: int = 600,
     default_token_ttl: int = 3600,
@@ -349,6 +343,7 @@ def build_redis_manager(
         redis_client,
         namespace=namespace,
         token_encryption_key=token_encryption_key,
+        fernet=fernet,
         default_nonce_ttl=default_nonce_ttl,
         default_idem_ttl=default_idem_ttl,
         default_token_ttl=default_token_ttl,

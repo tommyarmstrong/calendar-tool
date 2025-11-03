@@ -5,13 +5,14 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
+from shared_infrastructure.cryptography_manager import get_fernet
 from shared_infrastructure.redis_manager import build_redis_manager
 
 _GOOGLE_TOKEN_TTL = 3600 * 24 * 14  # 14 days
 
-redis_manager = build_redis_manager(
-    settings.redis_url, token_encryption_key=settings.calendar_token_encryption_key.encode("utf-8")
-)
+
+fernet = get_fernet(settings.calendar_token_encryption_key.encode("utf-8"))
+redis_manager = build_redis_manager(settings.redis_url, fernet=fernet)
 
 
 def _client_config() -> dict[str, dict[str, str | list[str]]]:
