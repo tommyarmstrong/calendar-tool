@@ -118,6 +118,8 @@ jobs:
 
           # Copy the shared platform_manager.py code into infrastructure/
           mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/infrastructure/platform_manager.py"
           echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
@@ -175,6 +177,8 @@ jobs:
 
           # Copy the shared platform_manager.py code into infrastructure/
           mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/infrastructure/platform_manager.py"
           echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
@@ -231,6 +235,8 @@ jobs:
 
           # Copy the shared platform_manager.py code into infrastructure/
           mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/infrastructure/platform_manager.py"
           echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
@@ -287,6 +293,8 @@ jobs:
 
           # Copy the shared platform_manager.py code into infrastructure/
           mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/infrastructure/platform_manager.py"
           echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
