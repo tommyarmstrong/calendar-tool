@@ -2,6 +2,23 @@
 
 A production-ready calendar management system that uses a Model Context Protocol (MCP) service to interact with Google Calendar. The system provides intelligent calendar management through natural language interactions, with support for both AWS cloud deployment and local development environments.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Components](#components)
+- [MCP Tools](#mcp-tools)
+- [Project Structure](#project-structure)
+- [CI/CD Automation (GitHub Actions)](#cicd-automation-github-actions)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Authentication Flow](#authentication-flow)
+- [Contributing](#contributing)
+- [Security Considerations](#security-considerations)
+- [Author](#author)
+- [License](#license)
+- [Support](#support)
+
 ## Overview
 
 The Calendar Tool consists of four main components:
@@ -50,9 +67,9 @@ The system implements multiple layers of security:
 
 ### Calendar Agent
 
-The main agent that processes user queries using an LLM (Large Language Model) and coordinates with the MCP service to interact with Google Calendar. The system uses **OpenAI GPT-5-mini** as its NLP model for understanding natural language requests and generating appropriate responses.
+The main agent that processes user queries using an LLM and coordinates with the MCP service to interact with Google Calendar. The system uses **OpenAI GPT-5-mini** as its NLP model for understanding natural language requests and generating appropriate responses.
 
-The agent architecture is designed to be easily extensible for different LLM models - the LLM integration is abstracted through a service layer, allowing developers to swap in different language models as needed. Currently GPT 5 models are supported.
+The agent architecture is designed to be easily extensible for different LLM models - the LLM integration is abstracted through a service layer, allowing developers to swap in different language models as needed. Currently GPT 5 models are implemented.
 
 The agent:
 
@@ -63,7 +80,7 @@ The agent:
 
 ### Calendar MCP Service
 
-A Model Context Protocol service that provides Google Calendar integration. It exposes two main tools:
+A Model Context Protocol service that provides Google Calendar integration. It exposes two tools:
 
 1. **FreeBusy Tool** - Checks calendar availability for a given time range
 2. **Create Event Tool** - Creates calendar events with specified details
