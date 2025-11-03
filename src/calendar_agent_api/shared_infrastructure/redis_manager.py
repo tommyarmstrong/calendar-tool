@@ -1,1 +1,0 @@
-../../calendar_shared/redis_manager.py

@@ -1,1 +1,0 @@
-../../calendar_shared/local_platform_manager.py
