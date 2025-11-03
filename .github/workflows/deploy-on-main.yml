@@ -1,4 +1,4 @@
-name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git diff + aws_platform_manager rename)
+name: Deploy Lambdas on main (code-only, .lambdaignore, per-function via git diff + copy aws_platform_manager → platform_manager)
 
 on:
   push:
@@ -107,7 +107,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
+      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
         working-directory: src/calendar_agent
         shell: bash
         run: |
@@ -116,15 +116,14 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Ensure local- and pre-existing platform managers are not shipped
-          rm -f "$STAGE/infrastructure/platform_manager.py" \
-                "$STAGE/infrastructure/local_platform_manager.py"
-
-          # If AWS variant exists, ship it under the common name
-          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
-            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
+          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
+            mkdir -p "$STAGE/infrastructure"
+            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
                "$STAGE/infrastructure/platform_manager.py"
-            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+          else
+            echo "No infrastructure/platform_manager.py in this module; skipping injection."
           fi
 
           # Build zip excludes from .lambdaignore + baseline
@@ -164,7 +163,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
+      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
         working-directory: src/calendar_agent_api
         shell: bash
         run: |
@@ -173,13 +172,14 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          rm -f "$STAGE/infrastructure/platform_manager.py" \
-                "$STAGE/infrastructure/local_platform_manager.py"
-
-          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
-            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
+          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
+            mkdir -p "$STAGE/infrastructure"
+            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
                "$STAGE/infrastructure/platform_manager.py"
-            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+          else
+            echo "No infrastructure/platform_manager.py in this module; skipping injection."
           fi
 
           EXCLUDES=()
@@ -218,7 +218,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
+      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
         working-directory: src/calendar_mcp
         shell: bash
         run: |
@@ -227,13 +227,14 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          rm -f "$STAGE/infrastructure/platform_manager.py" \
-                "$STAGE/infrastructure/local_platform_manager.py"
-
-          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
-            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
+          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
+            mkdir -p "$STAGE/infrastructure"
+            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
                "$STAGE/infrastructure/platform_manager.py"
-            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+          else
+            echo "No infrastructure/platform_manager.py in this module; skipping injection."
           fi
 
           EXCLUDES=()
@@ -272,7 +273,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, rename aws_platform_manager → platform_manager, zip (.lambdaignore)
+      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
         working-directory: src/calendar_oauth_redirect
         shell: bash
         run: |
@@ -281,13 +282,14 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          rm -f "$STAGE/infrastructure/platform_manager.py" \
-                "$STAGE/infrastructure/local_platform_manager.py"
-
-          if [ -f "$STAGE/infrastructure/aws_platform_manager.py" ]; then
-            cp "$STAGE/infrastructure/aws_platform_manager.py" \
+          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
+          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
+            mkdir -p "$STAGE/infrastructure"
+            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
                "$STAGE/infrastructure/platform_manager.py"
-            rm -f "$STAGE/infrastructure/aws_platform_manager.py"
+            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+          else
+            echo "No infrastructure/platform_manager.py in this module; skipping injection."
           fi
 
           EXCLUDES=()
