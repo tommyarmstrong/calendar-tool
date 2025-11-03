@@ -107,7 +107,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
+      - name: Stage, copy shared files into shared_infrastructure, zip (.lambdaignore)
         working-directory: src/calendar_agent
         shell: bash
         run: |
@@ -116,18 +116,18 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared platform_manager.py code into infrastructure/
-          mkdir -p "$STAGE/infrastructure"
-          rm -f "$STAGE/infrastructure/platform_manager.py"
-          rm -f "$STAGE/infrastructure/redis_manager.py"
+          # Copy the shared files into shared_infrastructure/
+          mkdir -p "$STAGE/shared_infrastructure"
+          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
+          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
+          rm -f "$STAGE/shared_infrastructure/hmac_auth.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/infrastructure/platform_manager.py"
-          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-
-          # Copy the shared redis_manager.py code into infrastructure/
+              "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/infrastructure/redis_manager.py"
-          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
+              "$STAGE/shared_infrastructure/redis_manager.py"
+          cp "${{ github.workspace }}/src/calendar_shared/hmac_auth.py" \
+              "$STAGE/shared_infrastructure/hmac_auth.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth)"
 
           # Build zip excludes from .lambdaignore + baseline
           EXCLUDES=()
@@ -166,7 +166,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
+      - name: Stage, copy shared files into shared_infrastructure, zip (.lambdaignore)
         working-directory: src/calendar_agent_api
         shell: bash
         run: |
@@ -175,18 +175,15 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared platform_manager.py code into infrastructure/
-          mkdir -p "$STAGE/infrastructure"
-          rm -f "$STAGE/infrastructure/platform_manager.py"
-          rm -f "$STAGE/infrastructure/redis_manager.py"
+          # Copy the shared files into shared_infrastructure/
+          mkdir -p "$STAGE/shared_infrastructure"
+          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
+          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/infrastructure/platform_manager.py"
-          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-
-          # Copy the shared redis_manager.py code into infrastructure/
+              "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/infrastructure/redis_manager.py"
-          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
+              "$STAGE/shared_infrastructure/redis_manager.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager)"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
@@ -224,7 +221,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
+      - name: Stage, copy shared files into shared_infrastructure, zip (.lambdaignore)
         working-directory: src/calendar_mcp
         shell: bash
         run: |
@@ -233,18 +230,18 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared platform_manager.py code into infrastructure/
-          mkdir -p "$STAGE/infrastructure"
-          rm -f "$STAGE/infrastructure/platform_manager.py"
-          rm -f "$STAGE/infrastructure/redis_manager.py"
+          # Copy the shared files into shared_infrastructure/
+          mkdir -p "$STAGE/shared_infrastructure"
+          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
+          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
+          rm -f "$STAGE/shared_infrastructure/hmac_auth.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/infrastructure/platform_manager.py"
-          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-
-          # Copy the shared redis_manager.py code into infrastructure/
+              "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/infrastructure/redis_manager.py"
-          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
+              "$STAGE/shared_infrastructure/redis_manager.py"
+          cp "${{ github.workspace }}/src/calendar_shared/hmac_auth.py" \
+              "$STAGE/shared_infrastructure/hmac_auth.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth)"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
@@ -282,7 +279,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Stage, copy shared aws_platform_manager → infrastructure/platform_manager.py, zip (.lambdaignore)
+      - name: Stage, copy shared files into shared_infrastructure, zip (.lambdaignore)
         working-directory: src/calendar_oauth_redirect
         shell: bash
         run: |
@@ -291,18 +288,15 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared platform_manager.py code into infrastructure/
-          mkdir -p "$STAGE/infrastructure"
-          rm -f "$STAGE/infrastructure/platform_manager.py"
-          rm -f "$STAGE/infrastructure/redis_manager.py"
+          # Copy the shared files into shared_infrastructure/
+          mkdir -p "$STAGE/shared_infrastructure"
+          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
+          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/infrastructure/platform_manager.py"
-          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-
-          # Copy the shared redis_manager.py code into infrastructure/
+              "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/infrastructure/redis_manager.py"
-          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
+              "$STAGE/shared_infrastructure/redis_manager.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager)"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then

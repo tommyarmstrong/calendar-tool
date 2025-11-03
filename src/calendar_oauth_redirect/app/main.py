@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from auth.google_oauth import finish_auth, start_auth_url
-from infrastructure.platform_manager import create_logger
+from shared_infrastructure.platform_manager import create_logger
 
 logger = create_logger(logger_name="calendar-redirect", log_level="INFO")
 logger.info("Starting Calendar OAuth Redirect Service")

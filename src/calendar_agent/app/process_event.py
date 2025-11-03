@@ -1,7 +1,7 @@
 from typing import Any
 
 from app.config import X_CLIENT_ID, get_settings
-from infrastructure.redis_manager import build_redis_manager
+from shared_infrastructure.redis_manager import build_redis_manager
 
 
 def validate_data(data: dict[str, Any]) -> bool:

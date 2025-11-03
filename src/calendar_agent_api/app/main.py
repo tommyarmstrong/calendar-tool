@@ -12,8 +12,8 @@ from app.config import (
 from app.process_event import process_event_data
 from auth.client_auth import authorize_client_request
 from auth.slack_auth import authorize_slack_request, verify_slack_signature
-from infrastructure.platform_manager import create_logger, invoke_lambda
-from infrastructure.redis_manager import build_redis_manager
+from shared_infrastructure.platform_manager import create_logger, invoke_lambda
+from shared_infrastructure.redis_manager import build_redis_manager
 
 settings = get_settings()
 redis_manager = build_redis_manager(settings.redis_url)

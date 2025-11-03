@@ -3,9 +3,9 @@ import uuid
 from typing import Any
 
 from app.config import MCP_SCHEMA_CACHE, MCP_SCHEMA_TTL, get_settings
-from infrastructure.hmac_auth import hmac_headers_for_request
-from infrastructure.redis_manager import build_redis_manager
 from services.requests_helpers import requests_verify_setting, session_with_pkcs12
+from shared_infrastructure.hmac_auth import hmac_headers_for_request
+from shared_infrastructure.redis_manager import build_redis_manager
 
 _TIMEOUT = 15
 

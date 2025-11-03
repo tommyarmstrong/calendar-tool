@@ -4,12 +4,12 @@ from typing import Any
 from app.config import get_settings
 from app.logging import log_plan_response
 from app.process_event import process_event_data
-from infrastructure.platform_manager import create_logger
-from infrastructure.redis_manager import build_redis_manager
 from infrastructure.slack_manager import post_to_slack
 from services.llm_service import plan_mcp_call
 from services.mcp_client_service import call_mcp
 from services.renderer_service import render_mcp_result
+from shared_infrastructure.platform_manager import create_logger
+from shared_infrastructure.redis_manager import build_redis_manager
 
 logger = create_logger(log_level="INFO", logger_name="calendar-agent")
 logger.info("Starting Calendar Agent")

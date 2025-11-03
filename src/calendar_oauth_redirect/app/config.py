@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from infrastructure.platform_manager import get_parameters
+from shared_infrastructure.platform_manager import get_parameters
 
 
 def _validate_params(params: dict[str, Any]) -> list[str]:

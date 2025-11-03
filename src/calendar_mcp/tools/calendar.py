@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from shared_infrastructure.redis_manager import build_redis_manager
+
 from app.config import get_settings
 from auth.google_oauth import calendar_service
-from infrastructure.redis_manager import build_redis_manager
 
 
 def _idem_key(title: str, start: str, end: str, attendees: list[str]) -> str:
