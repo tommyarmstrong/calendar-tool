@@ -2,8 +2,8 @@
 import uuid
 from typing import Any
 
-from app.config import REDIS_CACHE_PATH, REDIS_CACHE_TTL, get_settings
-from services.cache_service import RedisCache
+from app.config import MCP_SCHEMA_CACHE, MCP_SCHEMA_TTL, get_settings
+from infrastructure.redis_manager import build_redis_manager
 from services.hmac_service import hmac_headers_for_request
 from services.requests_helpers import requests_verify_setting, session_with_pkcs12
 
@@ -34,19 +34,12 @@ def _get(path: str) -> Any:
 
 def get_tools_and_schemas() -> dict[str, Any]:
     settings = get_settings()
+    redis_manager = build_redis_manager(settings.redis_url)
     manifest = None
     tools = None
     schemas = None
 
-    if not all([settings.redis_host, settings.redis_port, settings.redis_password]):
-        raise ValueError("Redis configuration is incomplete")
-    assert (
-        settings.redis_host is not None
-        and settings.redis_port is not None
-        and settings.redis_password is not None
-    )
-    cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
-    retrieved = cache.get_json(REDIS_CACHE_PATH)
+    retrieved = redis_manager.get_json(MCP_SCHEMA_CACHE)
 
     if retrieved:
         manifest = retrieved.get("manifest")
@@ -68,6 +61,6 @@ def get_tools_and_schemas() -> dict[str, Any]:
     val = {"manifest": manifest, "tools": tools, "schemas": schemas}
 
     if fetched_from_mcp:
-        cache.set_json(REDIS_CACHE_PATH, val, ttl=REDIS_CACHE_TTL)
+        redis_manager.set_json(MCP_SCHEMA_CACHE, val, ttl=MCP_SCHEMA_TTL)
 
     return val

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
 from infrastructure.platform_manager import create_logger, get_parameters
-from services.cache_service import RedisCache
+from infrastructure.redis_manager import build_redis_manager
 
 X_CLIENT_ID = "dev-test-client-v1"
 CLIENT_TIMEOUT = 60  # Seconds
@@ -35,9 +35,8 @@ infra_params = get_parameters(
     "/apps/prod/infra/",
 )
 
-REDIS_PASSWORD = secrets["redis_password"]
-REDIS_HOST = infra_params["redis_host"]
-REDIS_PORT = infra_params["redis_port"]
+redis_url = f"redis://:{secrets['redis_password']}@{infra_params['redis_host']}:{infra_params['redis_port']}"
+redis_manager = build_redis_manager(redis_url)
 
 logger = create_logger(logger_name="calendar-client", log_level="INFO")
 
@@ -114,9 +113,6 @@ def poll_for_status(status_key: str, timeout: int = CLIENT_TIMEOUT) -> None:
     Returns:
         None
     """
-    assert REDIS_HOST is not None and REDIS_PORT is not None and REDIS_PASSWORD is not None
-
-    cache = RedisCache(REDIS_HOST, int(REDIS_PORT), REDIS_PASSWORD)
     start_time = time.time()
 
     # Backoff configuration
@@ -133,7 +129,7 @@ def poll_for_status(status_key: str, timeout: int = CLIENT_TIMEOUT) -> None:
             logger.error(f"Client timeout after {round(elapsed, 2)} seconds")
             return
 
-        result = cache.get_json(status_key)
+        result = redis_manager.get_json(status_key)
         if result:
             status_code = result.get("status_code")
             message = result.get("message")

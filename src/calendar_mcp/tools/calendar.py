@@ -5,7 +5,7 @@ from typing import Any
 
 from app.config import get_settings
 from auth.google_oauth import calendar_service
-from services.redis_services import has_idempotency, set_idempotency
+from infrastructure.redis_manager import build_redis_manager
 
 
 def _idem_key(title: str, start: str, end: str, attendees: list[str]) -> str:
@@ -13,9 +13,8 @@ def _idem_key(title: str, start: str, end: str, attendees: list[str]) -> str:
     return hashlib.sha256(src.encode()).hexdigest()
 
 
-def _get_google_not_linked_error() -> dict[str, Any]:
-    settings = get_settings()
-    redirect_url = settings.google_redirect_uri.replace("/oauth/callback", "/oauth/start")
+def _get_google_not_linked_error(redirect_url: str) -> dict[str, Any]:
+    redirect_url = redirect_url.replace("/oauth/callback", "/oauth/start")
     code = "not_authenticated"
     message = f"Please link your Google account with the Calendar MCP: {redirect_url}"
     return {"error": {"code": code, "message": message}}
@@ -24,7 +23,8 @@ def _get_google_not_linked_error() -> dict[str, Any]:
 def freebusy(window_start: str, window_end: str, calendars: list[str] | None = None) -> Any:
     svc = calendar_service()
     if not svc:
-        return _get_google_not_linked_error()
+        settings = get_settings()
+        return _get_google_not_linked_error(settings.google_redirect_uri)
     body = {
         "timeMin": window_start,
         "timeMax": window_end,
@@ -43,12 +43,15 @@ def create_event(
     conference: bool = False,
     color_id: str | None = "1",
 ) -> dict[str, Any]:
+    settings = get_settings()
+    redis_manager = build_redis_manager(settings.redis_url)
+
     svc = calendar_service()
     if not svc:
-        return _get_google_not_linked_error()
+        return _get_google_not_linked_error(settings.google_redirect_uri)
 
     key = _idem_key(title, start, end, attendees)
-    if has_idempotency(key):
+    if redis_manager.has_idempotency(key):
         return {"status": "duplicate_ignored"}
 
     event: dict[str, Any] = {
@@ -72,7 +75,7 @@ def create_event(
         .execute()
     )
 
-    set_idempotency(key)
+    redis_manager.set_idempotency(key)
     return {
         "event_id": created.get("id"),
         "html_link": created.get("htmlLink"),

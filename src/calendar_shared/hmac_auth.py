@@ -1,11 +1,12 @@
 import base64
 import hashlib
 import hmac
+import json
 import time
+import uuid
+from typing import Any
 
-from services.redis_services import is_nonce_unique
-
-HMAC_CLOCK_SKEW = 300  # ±5 minutes
+_HMAC_CLOCK_SKEW = 300  # ±5 minutes
 
 
 def _b64_hmac_sha256(key: bytes, message: bytes) -> str:
@@ -18,8 +19,49 @@ def _build_canonical(
 ) -> str:
     # The canonical string is: "{timestamp}\n{nonce}\n{METHOD}\n{PATH}\n{BODY}"
     base_canonical = f"{ts}\n{nonce}\n{method.upper()}\n{path_only}\n"
-    body_text = body_bytes.decode('utf-8') if body_bytes is not None else ""
+    body_text = body_bytes.decode("utf-8") if body_bytes is not None else ""
     return f"{base_canonical}{body_text}"
+
+
+def json_bytes_for_hmac(payload: dict[str, Any]) -> bytes:
+    # Deterministic JSON (no spaces, sorted keys, UTF-8)
+    json_str = json.dumps(payload, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
+    return json_str.encode("utf-8")
+
+
+def hmac_headers_for_request(
+    *,
+    path: str,
+    method: str,
+    body_bytes: bytes,
+    shared_secret: str,
+    agent_id: str,
+) -> dict[str, str]:
+    """
+    Canonical (no query string; body is exact bytes you will send):
+      "{timestamp}\n{nonce}\nPOST\n{path_only}\n{body}"
+    """
+
+    if not shared_secret:
+        raise ValueError("Agent HMAC secret is required")
+    if not agent_id:
+        raise ValueError("Agent ID is required")
+
+    ts = int(time.time())
+    ts_str = str(ts)
+    nonce = str(uuid.uuid4())
+    path_only = path.split("?", 1)[0] if "?" in path else path
+
+    # IMPORTANT: body_bytes must be exactly what is being sent over the wire.
+    canonical = _build_canonical(ts_str, nonce, method, path_only, body_bytes)
+    sig = _b64_hmac_sha256(shared_secret.encode("utf-8"), canonical.encode("utf-8"))
+
+    return {
+        "X-Agent-Id": agent_id,
+        "X-Agent-Timestamp": str(ts),
+        "X-Agent-Nonce": nonce,
+        "X-Agent-Signature": sig,
+    }
 
 
 def verify_hmac_signature(
@@ -45,16 +87,12 @@ def verify_hmac_signature(
     now = int(now or time.time())
 
     time_delta = abs(now - ts)
-    if time_delta > HMAC_CLOCK_SKEW:
+    if time_delta > _HMAC_CLOCK_SKEW:
         msg = (
             f"timestamp_skew - Time between server and client is {time_delta} seconds. "
             + "This could be a replay attack."
         )
         return False, msg
-
-    # Check nonce is unique - to prevent replay attacks
-    if not is_nonce_unique(nonce):
-        return False, "nonce_not_unique - This could be a replay attack"
 
     body_bytes = body.encode("utf-8") if body else None
     canonical = _build_canonical(ts_str, nonce, method, path_only, body_bytes)

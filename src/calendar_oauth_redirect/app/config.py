@@ -3,8 +3,6 @@ from typing import Any
 
 from infrastructure.platform_manager import get_parameters
 
-GOOGLE_TOKEN_TTL = 3600 * 20 * 14  # 14 days
-
 
 def _validate_params(params: dict[str, Any]) -> list[str]:
     """Validate that all required parameters have a value.

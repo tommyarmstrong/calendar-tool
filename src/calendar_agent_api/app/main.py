@@ -13,15 +13,10 @@ from app.process_event import process_event_data
 from auth.client_auth import authorize_client_request
 from auth.slack_auth import authorize_slack_request, verify_slack_signature
 from infrastructure.platform_manager import create_logger, invoke_lambda
-from services.cache_service import RedisCache, status_update
+from infrastructure.redis_manager import build_redis_manager
 
 settings = get_settings()
-redis_host = settings.redis_host
-redis_port = settings.redis_port
-redis_password = settings.redis_password
-
-assert redis_host is not None and redis_port is not None and redis_password is not None
-cache = RedisCache(redis_host, int(redis_port), redis_password)
+redis_manager = build_redis_manager(settings.redis_url)
 
 logger = create_logger(logger_name="calendar-agent-api", log_level="INFO")
 logger.info("Starting Calendar Agent API Service")
@@ -99,7 +94,9 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
         if not authorization_issues:
             logger.info("Client request authorized")
         # Update the status in the cache
-        status_update(request_id=request_id, status_code="202", status="processing")
+        redis_manager.set_status_update(
+            request_id=request_id, status_code="202", message="processing"
+        )
 
     # 4. Invoke the lambda function to process the message in a seperate thread
     logger.debug("Invoking Calendar Agent Lambda")
@@ -124,7 +121,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
 
     # If post looks like it's from a Client, return 202 while processing in the background
     if headers.get("x-client-id") == X_CLIENT_ID:
-        status_update_key = cache.get_status_key(request_id)
+        status_update_key = redis_manager.get_status_key(request_id)
         data = {
             "message": "processing",
             "request_id": request_id,

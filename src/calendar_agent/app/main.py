@@ -5,8 +5,8 @@ from app.config import get_settings
 from app.logging import log_plan_response
 from app.process_event import process_event_data
 from infrastructure.platform_manager import create_logger
+from infrastructure.redis_manager import build_redis_manager
 from infrastructure.slack_manager import post_to_slack
-from services.cache_service import status_update
 from services.llm_service import plan_mcp_call
 from services.mcp_client_service import call_mcp
 from services.renderer_service import render_mcp_result
@@ -77,6 +77,17 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     status_code, result_string = render_mcp_result(result)
     logger.info(f"Result: {result_string}")
 
+    settings = get_settings()
+    # Post the result to Slack channel if the post came from Slack
+    if data.get("request_type") == "slack":
+        assert settings.slack_pa_bot_token is not None, "SLACK_PA_BOT_TOKEN is not configured"
+        response = post_to_slack(
+            channel_id=data["channel_id"],
+            slack_bot_token=settings.slack_pa_bot_token,
+            message=result_string,
+        )
+        logger.info(f"Slack response: {response}")
+
     # Post the result to the cache if the post came from a client (not Slack)
     if data.get("request_type") == "client":
         request_id = data.get("request_id")
@@ -88,18 +99,10 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
                 content_type="text/plain",
             )
 
-        status_update(request_id=request_id, status_code=status_code, status=result_string)
-
-    # Post the result to Slack channel if the post came from Slack
-    if data.get("request_type") == "slack":
-        settings = get_settings()
-        assert settings.slack_pa_bot_token is not None, "SLACK_PA_BOT_TOKEN is not configured"
-        response = post_to_slack(
-            channel_id=data["channel_id"],
-            slack_bot_token=settings.slack_pa_bot_token,
-            message=result_string,
+        redis_manager = build_redis_manager(settings.redis_url)
+        redis_manager.set_status_update(
+            request_id=request_id, status_code=status_code, message=result_string
         )
-        logger.info(f"Slack response: {response}")
 
     # Basic response for now
     lambda_response = create_response(

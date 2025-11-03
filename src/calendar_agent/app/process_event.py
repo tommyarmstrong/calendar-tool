@@ -1,7 +1,7 @@
 from typing import Any
 
 from app.config import X_CLIENT_ID, get_settings
-from services.cache_service import RedisCache
+from infrastructure.redis_manager import build_redis_manager
 
 
 def validate_data(data: dict[str, Any]) -> bool:
@@ -48,28 +48,22 @@ def process_event_data(event: dict[str, Any]) -> dict[str, Any]:
         return data
     except ValueError as e:
         settings = get_settings()
-        assert settings.redis_host is not None
-        assert settings.redis_port is not None
-        assert settings.redis_password is not None
-        cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
+        redis_manager = build_redis_manager(settings.redis_url)
         request_id = data.get("request_id")
         if request_id:
-            cache.set_json(
-                cache.get_status_key(request_id),
+            redis_manager.set_json(
+                redis_manager.get_status_key(request_id),
                 {"status_code": 400, "message": str(e)},
                 ttl=15 * 60,
             )
         raise ValueError(f"Invalid data: {e}") from e
     except Exception as e:
         settings = get_settings()
-        assert settings.redis_host is not None
-        assert settings.redis_port is not None
-        assert settings.redis_password is not None
-        cache = RedisCache(settings.redis_host, int(settings.redis_port), settings.redis_password)
+        redis_manager = build_redis_manager(settings.redis_url)
         request_id = data.get("request_id")
         if request_id:
-            cache.set_json(
-                cache.get_status_key(request_id),
+            redis_manager.set_json(
+                redis_manager.get_status_key(request_id),
                 {"status_code": 500, "message": "Internal Server Error"},
                 ttl=15 * 60,
             )

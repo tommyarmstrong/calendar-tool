@@ -2,8 +2,9 @@ import json
 from typing import Any, cast
 
 from app.config import get_settings
-from auth.hmac_auth import verify_hmac_signature
+from infrastructure.hmac_auth import verify_hmac_signature
 from infrastructure.platform_manager import create_logger
+from infrastructure.redis_manager import build_redis_manager
 from mcp.manifest import manifest
 from mcp.router import call_tool, list_tools
 from mcp.schemas import LIST
@@ -46,6 +47,7 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     """Process the incoming  HTTP Gateway event."""
 
     settings = get_settings()
+    redis_manager = build_redis_manager(settings.redis_url)
 
     # Get the route key and split it into method and route
     route_key = event.get("routeKey", "")
@@ -70,6 +72,11 @@ def process(event: dict[str, Any]) -> dict[str, Any]:
     if not timestamp or not nonce or not signature:
         logger.error("Missing HMAC headers")
         return create_response(401, "Missing HMAC headers")
+
+    # Check the nonce is unique
+    if not redis_manager.is_nonce_unique(nonce):
+        logger.error("HMAC nonce not unique")
+        return create_response(401, "Nonce not unique")
 
     # Validate the HMAC signature
     is_valid, reason = verify_hmac_signature(

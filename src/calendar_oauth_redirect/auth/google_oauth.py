@@ -5,7 +5,11 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-from services.redis_services import load_tokens, purge_tokens, save_tokens
+from infrastructure.redis_manager import build_redis_manager
+
+_GOOGLE_TOKEN_TTL = 3600 * 20 * 14  # 14 days
+
+redis_manager = build_redis_manager(settings.redis_url)
 
 
 def _client_config() -> dict[str, dict[str, str | list[str]]]:
@@ -48,12 +52,12 @@ def finish_auth(code: str) -> dict[str, str | None]:
         "scopes": creds.scopes,
         "expiry": creds.expiry.isoformat() if creds.expiry else None,
     }
-    save_tokens(tokens)
+    redis_manager.save_tokens("user1", tokens, ttl=_GOOGLE_TOKEN_TTL)
     return tokens
 
 
 def get_creds() -> Credentials | None:
-    tokens = load_tokens()
+    tokens = redis_manager.load_tokens("user1")
     if not tokens:
         return None
 
@@ -90,17 +94,17 @@ def refresh_creds(creds: Credentials) -> Credentials | None:
                 "scopes": list(creds.scopes) if creds.scopes else [],
                 "expiry": creds.expiry.isoformat() if creds.expiry else None,
             }
-            save_tokens(new_tokens)
+            redis_manager.save_tokens("user1", new_tokens, ttl=_GOOGLE_TOKEN_TTL)
 
             return creds
 
         except Exception as e:
             # Remove invalid tokens
-            purge_tokens()
+            redis_manager.purge_tokens("user1")
             raise ValueError(f"Failed to refresh token: {e}") from e
 
     # Token is expired but no refresh token available
-    purge_tokens()
+    redis_manager.purge_tokens("user1")
     return None
 
 

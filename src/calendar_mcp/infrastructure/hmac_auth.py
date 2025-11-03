@@ -1,0 +1,1 @@
+../../calendar_shared/hmac_auth.py

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from infrastructure.platform_manager import get_parameters
 
 # Constants that don't change
-REDIS_CACHE_PATH = "mcp:cache:calendar:v1"
-REDIS_CACHE_TTL = 86400  # 24 hours
+MCP_SCHEMA_CACHE = "mcp:cache:calendar:v1"
+MCP_SCHEMA_TTL = 86400  # 24 hours
 X_CLIENT_ID = "dev-test-client-v1"
 
 
