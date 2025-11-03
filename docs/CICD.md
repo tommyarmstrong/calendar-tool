@@ -10,10 +10,11 @@ This repo uses GitHub Actions → AWS Lambda via OIDC (no long-lived AWS keys) t
 - `src/calendar_agent_api/**`
 - `src/calendar_mcp/**`
 - `src/calendar_oauth_redirect/**`
+ - `src/calendar_shared/**`
 
-**Detect changes**: A detect job runs `git diff` between the push range and sets booleans for each folder (ignoring Markdown, config, and other noise).
+**Detect changes**: A detect job runs `git diff` between the push range and sets booleans for each folder (ignoring Markdown, config, and other noise). If anything under `src/calendar_shared/**` changed, the job forces all four deploy flags to `true` so every Lambda is rebuilt against the new shared code.
 
-**Deploy**: There are four independent jobs (`deploy_*`). Each job runs only if its corresponding folder changed. Packaging uses a folder-local `.lambdaignore` (code-only; all deps come from Layers).
+**Deploy**: There are four independent jobs (`deploy_*`). Each job runs only if its corresponding folder changed (or if shared code changed). Packaging uses a folder-local `.lambdaignore` (code-only; all deps come from Layers) and injects shared files into each function’s package.
 
 ## Files to know
 
@@ -23,8 +24,20 @@ This repo uses GitHub Actions → AWS Lambda via OIDC (no long-lived AWS keys) t
   - `src/calendar_agent_api/`
   - `src/calendar_mcp/`
   - `src/calendar_oauth_redirect/`
+ - **Shared code**:
+   - `src/calendar_shared/` (platform manager, redis manager, crypto, HMAC, etc.)
 - **Optional per-folder ignore file**: `src/<function>/.lambdaignore`
   - (e.g. ignore README.md, configs, certs, etc.)
+
+## Shared code handling
+
+- At package time, the workflow injects real files from `src/calendar_shared/` into each function’s `shared_infrastructure/` directory inside the zip. This resolves symlinks to actual file content in the Lambda artifact.
+- Mapping highlights:
+  - `shared_infrastructure/platform_manager.py` ← `src/calendar_shared/aws_platform_manager.py` (AWS-specific variant)
+  - `shared_infrastructure/redis_manager.py` ← `src/calendar_shared/redis_manager.py`
+  - `shared_infrastructure/hmac_auth.py` ← `src/calendar_shared/hmac_auth.py`
+  - `shared_infrastructure/cryptography_manager.py` ← `src/calendar_shared/cryptography_manager.py`
+- In the repo, only `__init__.py` is tracked under each `shared_infrastructure/`; the other entries are symlinks and are intentionally untracked. The workflow step replaces them with the real shared files in the zip.
 
 ## AWS OIDC role
 
@@ -56,9 +69,10 @@ Create secret `AWS_ROLE_TO_ASSUME` with the full role ARN.
 
 ## What gets deployed
 
-- Only code from each function folder is zipped.
+- Only code from each function folder is zipped (plus the injected shared files).
 - No pip install here—dependencies live in Lambda Layers.
 - `.lambdaignore` rules are applied when creating the ZIP (e.g. ignore `*.md`, `*.pem`, `agent_config.json`, etc.).
+ - Symlinks under `shared_infrastructure/` are dereferenced by injecting the corresponding files from `src/calendar_shared/` before zipping.
 
 ## Add a new Lambda function
 
@@ -140,6 +154,8 @@ The detect job ignores, repo-wide:
 - `*.md`, `.gitignore`, `.ruffignore`, `.mypyignore`, `.mypy.toml`, `.ruff.toml`, `.lambdaignore`, `requirements.txt`, `pyproject.toml`
 
 Plus per-folder config files (e.g., `agent_config.json`) and server scaffolding (`fast_api_server.py`) as encoded in the detect script.
+
+Note: Any change under `src/calendar_shared/**` intentionally triggers all deploy jobs.
 
 If a file you change shouldn't trigger a deploy, add it to the excludes in the detect job and consider putting it in the folder's `.lambdaignore`.
 

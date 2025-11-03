@@ -4,11 +4,12 @@ A production-ready calendar management system that uses a Model Context Protocol
 
 ## Overview
 
-The Calendar Tool consists of three main components:
+The Calendar Tool consists of four main components:
 
 1. **Calendar Agent** - An intelligent agent that processes user requests and coordinates with the MCP service
 2. **Calendar MCP** - A Model Context Protocol service that provides Google Calendar integration tools
 3. **Calendar Agent API** - An API gateway layer that handles client requests (bearer token) and Slack bot integration
+4. **Google OAuth Redirect Server** - A dedicated service that manages the Google OAuth 2.0 flow and persists encrypted tokens in Redis for the MCP to use
 
 ## Architecture
 
@@ -123,9 +124,19 @@ calendar-tool/
 |   ├── calendar_agent_api/      # API gateway layer
 |   ├── calendar_install/        # AWS deployment automation
 |   ├── calendar_mcp/            # MCP service with Google Calendar tools
-|   └── calendar_oauth_redirect/ # Google OAuth redirect handler
+|   ├── calendar_oauth_redirect/ # Google OAuth redirect handler
+|   └── calendar_shared/         # Shared infrastructure (platform, crypto, Redis, HMAC, etc.)
 └── README.md                    # Project overview (this document)
 ```
+
+## CI/CD Automation (GitHub Actions)
+
+- Automated deployments are configured via GitHub Actions in `.github/workflows/deploy-on-main.yml`.
+- On pushes to `main`, the workflow:
+  - Detects which modules changed and selectively deploys the corresponding AWS Lambda functions.
+  - Rebuilds all Lambdas if shared code under `src/calendar_shared/` changes.
+  - Stages Lambda code, injects shared infrastructure files into each Lambda's `shared_infrastructure/` folder for packaging, and creates a zip respecting each module's `.lambdaignore`.
+  - Updates each Lambda's code using OIDC-based AWS credentials.
 
 ## Getting Started
 
@@ -139,9 +150,10 @@ calendar-tool/
 
 ### Installation
 
-For detailed installation instructions, see:
+For detailed installation instructions and operations, see:
 - **[Installation Guide](docs/INSTALL.md)** - Step-by-step setup instructions
 - **[Certificate Guide](docs/CERTIFICATES.md)** - Certificate generation and configuration
+- **[CI/CD Guide](docs/CICD.md)** - GitHub Actions workflow and deployment details
 
 ### AWS Deployment
 
@@ -224,7 +236,7 @@ Once your pull request is approved, it will be merged into the main branch.
 ## Security Considerations
 
 - Never commit secrets or certificates to version control
-- Use Parameter Store (SeecureStrings with KMS encryption) for all sensitive configuration
+- Use Parameter Store (SecureStrings with KMS encryption) for all sensitive configuration
 - Regularly rotate HMAC secrets and OAuth credentials
 - Monitor CloudWatch logs for authentication failures
 - Keep certificates up to date and rotate periodically
