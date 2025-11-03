@@ -116,15 +116,16 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
-          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
-            mkdir -p "$STAGE/infrastructure"
-            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-               "$STAGE/infrastructure/platform_manager.py"
-            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-          else
-            echo "No infrastructure/platform_manager.py in this module; skipping injection."
-          fi
+          # Copy the shared platform_manager.py code into infrastructure/
+          mkdir -p "$STAGE/infrastructure"
+          cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
+              "$STAGE/infrastructure/platform_manager.py"
+          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+
+          # Copy the shared redis_manager.py code into infrastructure/
+          cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
+              "$STAGE/infrastructure/redis_manager.py"
+          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
 
           # Build zip excludes from .lambdaignore + baseline
           EXCLUDES=()
@@ -172,15 +173,16 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
-          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
-            mkdir -p "$STAGE/infrastructure"
-            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-               "$STAGE/infrastructure/platform_manager.py"
-            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-          else
-            echo "No infrastructure/platform_manager.py in this module; skipping injection."
-          fi
+          # Copy the shared platform_manager.py code into infrastructure/
+          mkdir -p "$STAGE/infrastructure"
+          cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
+              "$STAGE/infrastructure/platform_manager.py"
+          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+
+          # Copy the shared redis_manager.py code into infrastructure/
+          cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
+              "$STAGE/infrastructure/redis_manager.py"
+          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
@@ -227,15 +229,16 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
-          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
-            mkdir -p "$STAGE/infrastructure"
-            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-               "$STAGE/infrastructure/platform_manager.py"
-            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-          else
-            echo "No infrastructure/platform_manager.py in this module; skipping injection."
-          fi
+          # Copy the shared platform_manager.py code into infrastructure/
+          mkdir -p "$STAGE/infrastructure"
+          cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
+              "$STAGE/infrastructure/platform_manager.py"
+          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+
+          # Copy the shared redis_manager.py code into infrastructure/
+          cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
+              "$STAGE/infrastructure/redis_manager.py"
+          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
@@ -282,15 +285,16 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # If the module defines infrastructure/platform_manager.py, add the shared aws_platform_manager.py into that location
-          if [ -f "$STAGE/infrastructure/platform_manager.py" ]; then
-            mkdir -p "$STAGE/infrastructure"
-            cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-               "$STAGE/infrastructure/platform_manager.py"
-            echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
-          else
-            echo "No infrastructure/platform_manager.py in this module; skipping injection."
-          fi
+          # Copy the shared platform_manager.py code into infrastructure/
+          mkdir -p "$STAGE/infrastructure"
+          cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
+              "$STAGE/infrastructure/platform_manager.py"
+          echo "Injected calendar_shared/aws_platform_manager.py → infrastructure/platform_manager.py"
+
+          # Copy the shared redis_manager.py code into infrastructure/
+          cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
+              "$STAGE/infrastructure/redis_manager.py"
+          echo "Injected calendar_shared/redis_manager.py → infrastructure/redis_manager.py"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
