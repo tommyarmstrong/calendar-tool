@@ -3,8 +3,8 @@ import uuid
 from typing import Any
 
 from app.config import MCP_SCHEMA_CACHE, MCP_SCHEMA_TTL, get_settings
+from infrastructure.hmac_auth import hmac_headers_for_request
 from infrastructure.redis_manager import build_redis_manager
-from services.hmac_service import hmac_headers_for_request
 from services.requests_helpers import requests_verify_setting, session_with_pkcs12
 
 _TIMEOUT = 15
@@ -19,7 +19,12 @@ def _get(path: str) -> Any:
     url = f"{settings.calendar_mcp_url}{path}"
 
     # Add HMAC headers (does not overwrite existing keys)
-    hmac_headers = hmac_headers_for_request(path, "GET")
+    hmac_headers = hmac_headers_for_request(
+        path=path,
+        method="GET",
+        shared_secret=settings.agent_hmac_secret,
+        agent_id=settings.agent_id,
+    )
     headers = {**base_headers, **hmac_headers}
 
     try:

@@ -4,7 +4,7 @@ import uuid
 from typing import Any
 
 from app.config import get_settings
-from services.hmac_service import hmac_headers_for_request, json_bytes_for_hmac
+from infrastructure.hmac_auth import hmac_headers_for_request, json_bytes_for_hmac
 from services.requests_helpers import requests_verify_setting, session_with_pkcs12
 
 _TIMEOUT = 30.0
@@ -32,7 +32,13 @@ def call_mcp(name: str, arguments: dict[str, Any] | None) -> Any:
         "Content-Type": "application/json",
     }
     # Add HMAC headers
-    hmac_headers = hmac_headers_for_request(path, "POST", body_bytes)
+    hmac_headers = hmac_headers_for_request(
+        path=path,
+        method="POST",
+        shared_secret=settings.agent_hmac_secret,
+        agent_id=settings.agent_id,
+        body_bytes=body_bytes,
+    )
     headers = {**headers, **hmac_headers}
 
     # Get verify settings

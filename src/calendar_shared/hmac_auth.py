@@ -30,12 +30,7 @@ def json_bytes_for_hmac(payload: dict[str, Any]) -> bytes:
 
 
 def hmac_headers_for_request(
-    *,
-    path: str,
-    method: str,
-    body_bytes: bytes,
-    shared_secret: str,
-    agent_id: str,
+    *, path: str, method: str, shared_secret: str, agent_id: str, body_bytes: bytes | None = None
 ) -> dict[str, str]:
     """
     Canonical (no query string; body is exact bytes you will send):
