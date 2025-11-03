@@ -54,3 +54,6 @@ certificates/
 # Temporary files
 *.tmp
 *.temp
+
+# Code from shared infrastructure
+**/shared_infrastructure/*

@@ -5,8 +5,8 @@ from pathlib import Path
 
 import requests
 from app.config import get_settings
-from calendar_shared.local_platform_manager import get_parameters
 from requests_pkcs12 import Pkcs12Adapter
+from shared_infrastructure.platform_manager import get_parameters
 
 
 def session_with_pkcs12() -> requests.Session:
