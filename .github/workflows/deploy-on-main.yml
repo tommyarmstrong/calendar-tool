@@ -250,7 +250,9 @@ jobs:
               "$STAGE/shared_infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/hmac_auth.py" \
               "$STAGE/shared_infrastructure/hmac_auth.py"
-          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth)"
+          cp "${{ github.workspace }}/src/calendar_shared/cryptography_manager.py" \
+              "$STAGE/shared_infrastructure/cryptography_manager.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth, cryptography_manager)"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
@@ -305,7 +307,9 @@ jobs:
               "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
               "$STAGE/shared_infrastructure/redis_manager.py"
-          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager)"
+          cp "${{ github.workspace }}/src/calendar_shared/cryptography_manager.py" \
+              "$STAGE/shared_infrastructure/cryptography_manager.py"
+          echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, cryptography_manager)"
 
           EXCLUDES=()
           if [ -f .lambdaignore ]; then
