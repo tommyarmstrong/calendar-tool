@@ -6,7 +6,6 @@ from pathlib import Path
 import requests
 from app.config import get_settings
 from requests_pkcs12 import Pkcs12Adapter
-from shared_infrastructure.platform_manager import get_parameters
 
 
 def session_with_pkcs12() -> requests.Session:
@@ -83,11 +82,9 @@ def requests_verify_setting() -> bool | str:
     Raises:
         No exceptions are raised by this function
     """
-    paramaters = get_parameters(["calendar_mcp_url"], "_")
-    calendar_mcp_url = paramaters.get("calendar_mcp_url")
+    settings = get_settings()
 
-    assert isinstance(calendar_mcp_url, str) and calendar_mcp_url is not None
-    if calendar_mcp_url.startswith("https://localhost"):
+    if settings.calendar_mcp_url.startswith("https://localhost"):
         certificate_path = "certificates/truststore.pem"
         if Path(certificate_path).exists():
             return certificate_path
