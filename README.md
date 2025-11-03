@@ -19,51 +19,54 @@ A production-ready calendar management system that uses a Model Context Protocol
 - [License](#license)
 - [Support](#support)
 
-## Overview
+<a id="overview"></a>
+## Overview 🔎
 
 The Calendar Tool consists of four main components:
 
-1. **Calendar Agent** - An intelligent agent that processes user requests and coordinates with the MCP service
-2. **Calendar MCP** - A Model Context Protocol service that provides Google Calendar integration tools
-3. **Calendar Agent API** - An API gateway layer that handles client requests (bearer token) and Slack bot integration
-4. **Google OAuth Redirect Server** - A dedicated service that manages the Google OAuth 2.0 flow and persists encrypted tokens in Redis for the MCP to use
+1. **Calendar Agent** 🤖 – Processes user requests and coordinates with the MCP service
+2. **Calendar MCP** 🧰 – Model Context Protocol service providing Google Calendar tools
+3. **Calendar Agent API** 🌐 – API layer for bearer-token clients and Slack bot integration
+4. **Google OAuth Redirect Server** 🔑 – Manages Google OAuth and stores encrypted tokens
 
-## Architecture
+<a id="architecture"></a>
+## Architecture 🏗️
 
 ### AWS Cloud Deployment
 
 The system is designed to run on AWS using the following services:
 
-- **AWS Lambda** - Serverless compute for all components
-- **API Gateway** - HTTP API endpoints with mTLS support and custom domain integration
-- **AWS Systems Manager Parameter Store** - Secure configuration and secrets management
-- **IAM** - Access control and policy enforcement
-- **CloudWatch** - Logging and monitoring
-- **S3** - Certificate truststore storage for mTLS
-- **AWS Certificate Manager (ACM)** - SSL/TLS certificate management with DNS integration
-- **Redis** - Caching for MCP tool discovery and token storage
+- **AWS Lambda** ⚡ – Serverless compute for all components
+- **API Gateway** 🚪 – HTTP APIs with mTLS and custom domains
+- **AWS Systems Manager Parameter Store** 🔒 – Secure configuration and secrets
+- **IAM** 🛡️ – Access control and policy enforcement
+- **CloudWatch** 📈 – Logging and monitoring
+- **S3** 🗂️ – Truststore storage for mTLS
+- **AWS Certificate Manager (ACM)** 🔏 – TLS certificates with DNS integration
+- **Redis** 🧠 – Caching and token storage
 
 ### Local Development
 
 The system can also run locally using:
 
-- **FastAPI** - Local HTTP server for all components
-- **Self-Signed Certificates** - Generated via the certificate manager for mTLS testing
-- **Redis** - For caching and token storage
+- **FastAPI** ⚡ – Local HTTP server for all components
+- **Self-Signed Certificates** 🪪 – Generated for mTLS testing
+- **Redis** 🧠 – For caching and token storage
 
 ### Security Features
 
 The system implements multiple layers of security:
 
-- **Mutual TLS (mTLS)** - Client certificates for secure MCP communication
-- **HMAC Signatures** - Request authentication using shared secrets
-- **Fernet Encryption** - Token encryption for sensitive data storage
-- **IAM Policies** - AWS IAM role-based access control
-- **Google OAuth 2.0** - Secure authentication with Google Calendar
-- **Bearer Token Authentication** - For client API access
-- **Slack Signature Verification** - For Slack bot integration with user, channel, and bot authorization
+- **Mutual TLS (mTLS)** 🔐 – Client certificates for secure MCP communication
+- **HMAC Signatures** 🔏 – Request authentication using shared secrets
+- **Fernet Encryption** 🗝️ – Token encryption for sensitive data storage
+- **IAM Policies** 🛡️ – AWS IAM role-based access control
+- **Google OAuth 2.0** 🔑 – Secure authentication with Google Calendar
+- **Bearer Token Authentication** 🪪 – For client API access
+- **Slack Signature Verification** 💬 – With user, channel and bot authorization
 
-## Components
+<a id="components"></a>
+## Components 🧩
 
 ### Calendar Agent
 
@@ -110,15 +113,16 @@ A separate service that handles the OAuth flow for linking Google accounts to th
 - Grant permissions for pre-configured Google Calendar scopes
 - Complete authentication and encrypted token storage
 
-## MCP Tools
+<a id="mcp-tools"></a>
+## MCP Tools 🧰
 
-### 1. FreeBusy Tool
+### 1. FreeBusy Tool ⏰
 
 Queries Google Calendar to check availability and scheduled events for a given time range.
 
 **Use Case**: "Am I free tomorrow afternoon?"
 
-### 2. Create Event Tool
+### 2. Create Event Tool ✍️
 
 Creates calendar events in Google Calendar with specified details such as:
 - Event title/description
@@ -128,7 +132,8 @@ Creates calendar events in Google Calendar with specified details such as:
 
 **Use Case**: "Create a meeting tomorrow at 2pm with Alice"
 
-## Project Structure
+<a id="project-structure"></a>
+## Project Structure 🗂️
 
 ```
 calendar-tool/
@@ -146,16 +151,18 @@ calendar-tool/
 └── README.md                    # Project overview (this document)
 ```
 
-## CI/CD Automation (GitHub Actions)
+<a id="cicd-automation-github-actions"></a>
+## CI/CD Automation (GitHub Actions) 🚢
 
-- Automated deployments are configured via GitHub Actions in `.github/workflows/deploy-on-main.yml`.
+- Automated deployments are configured via GitHub Actions 🚢 in `.github/workflows/deploy-on-main.yml`.
 - On pushes to `main`, the workflow:
-  - Detects which modules changed and selectively deploys the corresponding AWS Lambda functions.
-  - Rebuilds all Lambdas if shared code under `src/calendar_shared/` changes.
-  - Stages Lambda code, injects shared infrastructure files into each Lambda's `shared_infrastructure/` folder for packaging, and creates a zip respecting each module's `.lambdaignore`.
-  - Updates each Lambda's code using OIDC-based AWS credentials.
+  - Detects which modules changed and selectively deploys the corresponding AWS Lambda functions 🎯
+  - Rebuilds all Lambdas if shared code under `src/calendar_shared/` changes 🔁
+  - Stages code, injects shared infrastructure files into each Lambda's `shared_infrastructure/` 📦, and creates a zip respecting each module's `.lambdaignore`
+  - Updates each Lambda's code using OIDC-based AWS credentials 🔐
 
-## Getting Started
+<a id="getting-started"></a>
+## Getting Started 🚀
 
 ### Prerequisites
 
@@ -184,13 +191,14 @@ The project includes automation scripts in `src/calendar_install/` for:
 
 ### Local Development
 
-1. Generate certificates using the certificate manager
-2. Configure environment variables
-3. Run FastAPI servers for each component
+1. Generate certificates using the certificate manager 🪪
+2. Configure environment variables ⚙️
+3. Run FastAPI servers for each component 💻
 
 See the installation guides for detailed steps.
 
-## Configuration
+<a id="configuration"></a>
+## Configuration ⚙️
 
 Configuration is managed through AWS Parameter Store (production) or environment variables (local). Key configuration includes:
 
@@ -200,16 +208,18 @@ Configuration is managed through AWS Parameter Store (production) or environment
 - Certificate paths and passwords
 - Slack bot configuration (if using Slack integration)
 
-## Authentication Flow
+<a id="authentication-flow"></a>
+## Authentication Flow 🔐
 
-1. User links Google account via OAuth redirect server
-2. OAuth tokens are encrypted and stored in Redis
-3. Agent requests include HMAC signatures, Slack requests include Slack signature
-4. MCP API Gateway requires mTLS before invoking MCP
-4. MCP service verifies signatures and uses stored, encrypted Google tokens
-5. Google tokens are automatically refreshed when expired
+1. User links Google account via OAuth redirect server 🔑
+2. OAuth tokens are encrypted and stored in Redis 🧠
+3. Agent requests include HMAC signatures; Slack requests include Slack signature 🔏
+4. MCP API Gateway requires mTLS before invoking MCP 🔐
+4. MCP service verifies signatures and uses stored, encrypted Google tokens 🗝️
+5. Google tokens are automatically refreshed when expired 🔄
 
-## Contributing
+<a id="contributing"></a>
+## Contributing 🤝
 
 When contributing to this project:
 
@@ -250,19 +260,22 @@ When contributing to this project:
 
 Once your pull request is approved, it will be merged into the main branch.
 
-## Security Considerations
+<a id="security-considerations"></a>
+## Security Considerations 🛡️
 
-- Never commit secrets or certificates to version control
-- Use Parameter Store (SecureStrings with KMS encryption) for all sensitive configuration
-- Regularly rotate HMAC secrets and OAuth credentials
-- Monitor CloudWatch logs for authentication failures
-- Keep certificates up to date and rotate periodically
+- Never commit secrets or certificates to version control 🚫
+- Use Parameter Store (SecureStrings with KMS encryption) for all sensitive configuration 🔒
+- Regularly rotate HMAC secrets and OAuth credentials 🔄
+- Monitor CloudWatch logs for authentication failures 📈
+- Keep certificates up to date and rotate periodically 🗓️
 
-## Author
+<a id="author"></a>
+## Author ✍️
 
 **Tommy Armstrong**
 
-## License
+<a id="license"></a>
+## License 📜
 
 **License TBD** - All rights reserved.
 
@@ -270,7 +283,8 @@ Copyright © 2025 Tommy Armstrong. All rights reserved.
 
 (Note: License terms to be determined.)
 
-## Support
+<a id="support"></a>
+## Support 💬
 
 For issues and questions, please refer to:
 - Installation documentation: `docs/INSTALL.md`
