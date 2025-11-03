@@ -2,9 +2,10 @@ import argparse
 import json
 import sys
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import boto3
 from aws_config_manager import create_logger, get_config
@@ -91,8 +92,7 @@ class IAMManager:
             hasattr(config, "parameters") and config.parameters
         )
         self.has_invoke_lambda_policy = config is not None and (
-            hasattr(config, "invoke_lambda_permissions")
-            and config.invoke_lambda_permissions
+            hasattr(config, "invoke_lambda_permissions") and config.invoke_lambda_permissions
         )
 
         self.iam = boto3.client("iam")
@@ -229,9 +229,7 @@ class IAMManager:
                     return str(p.get("Arn", ""))
         return None
 
-    def _set_new_policy_version(
-        self, policy_document: str, policy_arn: str | None = None
-    ) -> None:
+    def _set_new_policy_version(self, policy_document: str, policy_arn: str | None = None) -> None:
         """
         Create a new policy version and set it as default.
         Returns the new version ID.
@@ -246,9 +244,7 @@ class IAMManager:
             SetAsDefault=True,
         )
         version_id = str(resp["PolicyVersion"]["VersionId"])
-        print(
-            f"Created new policy version {version_id} (set as default) for {target_arn}"
-        )
+        print(f"Created new policy version {version_id} (set as default) for {target_arn}")
 
         # Prune older versions if above limit
         self._prune_old_versions(keep=5, policy_arn=target_arn)
@@ -332,9 +328,7 @@ class IAMManager:
             # Try to get the role to ensure it exists and is accessible
             self.iam.get_role(RoleName=self.role_name)
             # Check if the basic execution policy is attached
-            attached_policies = self.iam.list_attached_role_policies(
-                RoleName=self.role_name
-            )
+            attached_policies = self.iam.list_attached_role_policies(RoleName=self.role_name)
             basic_exec_policy_attached = any(
                 policy["PolicyArn"]
                 == "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
@@ -351,7 +345,8 @@ class IAMManager:
             and not self.has_invoke_lambda_policy
         ):
             logger.info(
-                "No custom policy, auto policy, or invoke lambda policy configured, skipping policy deployment"
+                "No custom policy, auto policy, or invoke lambda policy configured, "
+                + "skipping policy deployment"
             )
             return
 
@@ -409,9 +404,7 @@ class IAMManager:
                 # Find existing policy ARN
                 existing_arn = self._find_policy_arn_by_name(policy_name)
                 if existing_arn is None:
-                    raise Exception(
-                        f"Policy {policy_name} already exists, but no ARN found"
-                    )
+                    raise Exception(f"Policy {policy_name} already exists, but no ARN found") from e
                 logger.info(
                     f"Policy {policy_name} already exists, updating instead: {existing_arn}"
                 )
@@ -427,7 +420,7 @@ class IAMManager:
             else:
                 raise ClientError(e) from e
         except Exception as e:
-            raise Exception(f"{e}")
+            raise Exception(str(e)) from e
 
     def deploy_role(self) -> None:
         # Define the trust policy
@@ -459,20 +452,16 @@ class IAMManager:
 
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "EntityAlreadyExists":
-                self.role_arn = self.iam.get_role(RoleName=self.role_name)["Role"][
-                    "Arn"
-                ]
+                self.role_arn = self.iam.get_role(RoleName=self.role_name)["Role"]["Arn"]
 
                 if self.role_arn is None or not isinstance(self.role_arn, str):
-                    raise Exception("Role already exists, but no ARN found")
+                    raise Exception("Role already exists, but no ARN found") from e
                 logger.info(f"Role already exists: {self.role_arn}")
         except Exception as e:
-            raise Exception(f"{e}")
+            raise Exception(str(e)) from e
 
         # Wait for the role to be ready in IAM
-        retry_with_backoff(
-            self._check_role_ready, max_retries=10, base_delay=2.0, max_delay=10.0
-        )
+        retry_with_backoff(self._check_role_ready, max_retries=10, base_delay=2.0, max_delay=10.0)
 
         logger.info(f"Created role: {self.role_arn}")
         return
@@ -490,18 +479,14 @@ class IAMManager:
                 RoleName=self.role_name,
                 PolicyArn=policy_arn,
             )
-            logger.info(
-                f"Attached policy {policy_name} ({policy_arn}) to role {self.role_name}"
-            )
+            logger.info(f"Attached policy {policy_name} ({policy_arn}) to role {self.role_name}")
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "EntityAlreadyExists":
-                logger.info(
-                    f"Policy {policy_name} already attached to role {self.role_name}"
-                )
+                logger.info(f"Policy {policy_name} already attached to role {self.role_name}")
             else:
                 raise ClientError(e) from e
         except Exception as e:
-            raise Exception(f"Failed to attach policy {policy_name} to role: {e}")
+            raise Exception(f"Failed to attach policy {policy_name} to role: {e}") from e
 
     def attach_all_policies(self) -> None:
         """
@@ -534,9 +519,7 @@ class IAMManager:
             ))
 
         # 4. Basic execution role (always attach)
-        basic_exec_policy_arn = (
-            "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        )
+        basic_exec_policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
         policies_to_attach.append((
             basic_exec_policy_arn,
             "AWSLambdaBasicExecutionRole",
@@ -612,12 +595,8 @@ def main() -> int:
 
         if hasattr(config, "parameters") and config.parameters:
             # Count regular parameters vs secrets
-            regular_params = sum(
-                1 for p in config.parameters if p.get("Type") != "SecureString"
-            )
-            secret_params = sum(
-                1 for p in config.parameters if p.get("Type") == "SecureString"
-            )
+            regular_params = sum(1 for p in config.parameters if p.get("Type") != "SecureString")
+            secret_params = sum(1 for p in config.parameters if p.get("Type") == "SecureString")
 
             if regular_params > 0:
                 logger.info(f"Auto Policy: Generated from {regular_params} parameters")
@@ -628,7 +607,8 @@ def main() -> int:
             hasattr(config, "parameters") and config.parameters
         ):
             logger.info(
-                "No custom policy or parameters configured - only basic execution role will be attached"
+                "No custom policy or parameters configured - only basic execution role "
+                + "will be attached"
             )
 
         # Deploy the policy and role

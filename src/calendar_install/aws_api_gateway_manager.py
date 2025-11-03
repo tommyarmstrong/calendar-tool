@@ -58,9 +58,7 @@ class APIGatewayManager:
                 "OPTIONS",
                 "HEAD",
             }:
-                logger.warning(
-                    f"WARNING: Unusual HTTP method '{method}'. Proceeding anyway."
-                )
+                logger.warning(f"WARNING: Unusual HTTP method '{method}'. Proceeding anyway.")
             checked_routes.append(route)
         if len(checked_routes) != len(self.api_routes):
             logger.warning(
@@ -127,7 +125,10 @@ class APIGatewayManager:
         if existing:
             return existing
 
-        uri = f"arn:aws:apigateway:{self.region_name}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations"
+        uri = (
+            f"arn:aws:apigateway:{self.region_name}:lambda:path/2015-03-31/functions/"
+            f"{lambda_arn}/invocations"
+        )
         resp = self.api_client.create_integration(
             ApiId=api_id,
             IntegrationType="AWS_PROXY",
@@ -155,11 +156,7 @@ class APIGatewayManager:
                         self.api_client.update_route(
                             ApiId=api_id, RouteId=r["RouteId"], Target=desired
                         )
-                        return dict(
-                            self.api_client.get_route(
-                                ApiId=api_id, RouteId=r["RouteId"]
-                            )
-                        )
+                        return dict(self.api_client.get_route(ApiId=api_id, RouteId=r["RouteId"]))
                     return dict(r)
         return dict(
             self.api_client.create_route(
@@ -175,7 +172,10 @@ class APIGatewayManager:
         Uses deterministic StatementId per api+method+path.
         """
         path_nolead = path[1:] if path.startswith("/") else path
-        source_arn = f"arn:aws:execute-api:{self.region_name}:{self.account_id}:{api_id}/*/{method.upper()}/{path_nolead}"
+        source_arn = (
+            f"arn:aws:execute-api:{self.region_name}:{self.account_id}:{api_id}/*/"
+            f"{method.upper()}/{path_nolead}"
+        )
 
         sid_hash = hashlib.sha256(f"{api_id}:{method}:{path}".encode()).hexdigest()[:16]
         statement_id = f"apigw-{api_id}-{sid_hash}"
@@ -229,9 +229,7 @@ class APIGatewayManager:
             # Ensure stage for this route if not already created
             if stage_name not in stages_created:
                 stage = self._ensure_stage(api_id, stage_name)
-                logger.info(
-                    f"Stage: {stage['StageName']} (AutoDeploy={stage.get('AutoDeploy')})"
-                )
+                logger.info(f"Stage: {stage['StageName']} (AutoDeploy={stage.get('AutoDeploy')})")
                 stages_created.add(stage_name)
 
             lambda_arn = self._get_lambda_arn(lambda_function)
@@ -244,9 +242,7 @@ class APIGatewayManager:
                 "stage": stage_name,
                 "lambda_arn": lambda_arn,
             })
-            logger.info(
-                f"Route ensured: {route['RouteKey']} → integrations/{integration_id}"
-            )
+            logger.info(f"Route ensured: {route['RouteKey']} → integrations/{integration_id}")
 
         # Generate URLs for each stage
         logger.info("Invoke URLs:")

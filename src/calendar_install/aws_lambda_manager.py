@@ -5,8 +5,9 @@ import sys
 import tempfile
 import time
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import boto3
 from aws_config_manager import AWSConfig, create_logger, get_config
@@ -94,9 +95,7 @@ def zip_files(zip_path: Path, files: list[str]) -> None:
             # Special swap: if requesting platform_manager.py, use aws_platform_manager.py instead
             if rel_file == special_dest and special_src.exists():
                 zf.write(special_src, arcname=rel_file)
-                logger.info(
-                    f"Substituted 'aws_platform_manager.py' → '{rel_file}' in zip"
-                )
+                logger.info(f"Substituted 'aws_platform_manager.py' → '{rel_file}' in zip")
                 continue
 
             # Find the file in the code directory
@@ -105,9 +104,7 @@ def zip_files(zip_path: Path, files: list[str]) -> None:
             logger.debug(f"File exists: {file_path.exists()}")
 
             if not file_path.exists():
-                raise FileNotFoundError(
-                    f"Code file '{rel_file}' not found in {code_directory}"
-                )
+                raise FileNotFoundError(f"Code file '{rel_file}' not found in {code_directory}")
 
             # Write the file to zip with the same relative path structure
             zf.write(file_path, arcname=rel_file)
@@ -182,9 +179,7 @@ def build_layer_zip(*, tmpdir: Path, packages: list[str], python_version: str) -
 class LambdaManager:
     def __init__(self, config: AWSConfig):
         self.config = config
-        self.code_zip_path = Path(
-            self.config.code_directory / self.config.zip_filename
-        ).resolve()
+        self.code_zip_path = Path(self.config.code_directory / self.config.zip_filename).resolve()
 
         # AWS clients with extended timeouts for large uploads
         self.iam_client = boto3.client("iam")
@@ -245,9 +240,7 @@ class LambdaManager:
             )
             raise
 
-    def _wait_for_lambda_ready(
-        self, *, timeout: int = 300, interval: float = 2.0
-    ) -> None:
+    def _wait_for_lambda_ready(self, *, timeout: int = 300, interval: float = 2.0) -> None:
         """
         Wait until the function is no longer updating.
         Prefer official waiter; fall back to polling LastUpdateStatus/State.
@@ -281,9 +274,7 @@ class LambdaManager:
             + f"(State={state}, LastUpdateStatus={last})"
         )
 
-    def _wait_for_policy_availability(
-        self, policy_arn: str, max_retries: int = 10
-    ) -> None:
+    def _wait_for_policy_availability(self, policy_arn: str, max_retries: int = 10) -> None:
         """
         Wait for an IAM policy to become available for attachment.
         """
@@ -335,17 +326,17 @@ class LambdaManager:
                         RoleName=self.config.role_name, PolicyArn=arn
                     )
 
-                retry_with_backoff(
-                    attach_policy, max_retries=5, base_delay=2.0, max_delay=10.0
-                )
+                retry_with_backoff(attach_policy, max_retries=5, base_delay=2.0, max_delay=10.0)
                 logger.info(
-                    f"Successfully attached policy '{policy_name}' to role '{self.config.role_name}'"
+                    f"Successfully attached policy '{policy_name}' to role "
+                    + f"'{self.config.role_name}'"
                 )
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code")
                 if error_code == "NoSuchEntity":
                     logger.error(
-                        f"Policy '{policy_name}' not found in IAM (checked both AWS managed and customer managed)"
+                        f"Policy '{policy_name}' not found in IAM "
+                        + "(checked both AWS managed and customer managed)"
                     )
                 else:
                     logger.error(f"Failed to attach policy '{policy_name}': {e}")
@@ -397,18 +388,14 @@ class LambdaManager:
                 except ClientError:
                     return False
 
-            retry_with_backoff(
-                check_role_ready, max_retries=10, base_delay=2.0, max_delay=10.0
-            )
+            retry_with_backoff(check_role_ready, max_retries=10, base_delay=2.0, max_delay=10.0)
 
             logger.info(f"Created role: {role_arn}")
             return str(role_arn)
         except ClientError as e:
             if e.response.get("Error", {}).get("Code") == "EntityAlreadyExists":
                 role_arn = str(
-                    self.iam_client.get_role(RoleName=self.config.role_name)["Role"][
-                        "Arn"
-                    ]
+                    self.iam_client.get_role(RoleName=self.config.role_name)["Role"]["Arn"]
                 )
                 logger.info(f"Role exists: {role_arn}")
                 return role_arn
@@ -443,9 +430,7 @@ class LambdaManager:
 
         # Check if layer is too large (AWS limit is 250MB unzipped, 50MB zipped)
         if len(layer_zip_bytes) > 50 * 1024 * 1024:  # 50MB
-            raise ValueError(
-                f"Layer zip file is too large: {layer_size_mb:.2f} MB (max: 50MB)"
-            )
+            raise ValueError(f"Layer zip file is too large: {layer_size_mb:.2f} MB (max: 50MB)")
 
         def publish_layer_with_retry() -> str:
             try:
@@ -503,9 +488,7 @@ class LambdaManager:
         as a newly published version.
         """
         new_names = {self._layer_name_from_arn(a) for a in new_arns}
-        kept_existing = [
-            a for a in existing if self._layer_name_from_arn(a) not in new_names
-        ]
+        kept_existing = [a for a in existing if self._layer_name_from_arn(a) not in new_names]
         return kept_existing + new_arns
 
     def _update_function_configuration(
@@ -559,9 +542,7 @@ class LambdaManager:
         kwargs = {k: v for k, v in kwargs.items() if k in allowed}
 
         logger.info(f"Updating configuration for {self.config.function_name} …")
-        logger.debug(
-            "update_function_configuration kwargs:", json.dumps(kwargs, indent=2)
-        )
+        logger.debug("update_function_configuration kwargs:", json.dumps(kwargs, indent=2))
         self.lambda_client.update_function_configuration(**kwargs)
 
         # Wait for this update to complete to avoid subsequent conflicts
@@ -594,9 +575,7 @@ class LambdaManager:
                 "Publish": True,
             }
             if debug:
-                printable = {
-                    k: ("<ZipFile>" if k == "Code" else v) for k, v in kwargs.items()
-                }
+                printable = {k: ("<ZipFile>" if k == "Code" else v) for k, v in kwargs.items()}
                 logger.info("create_function kwargs:", json.dumps(printable, indent=2))
             self.lambda_client.create_function(**kwargs)
             self._wait_for_lambda_ready()
@@ -604,7 +583,8 @@ class LambdaManager:
 
         else:
             logger.info(
-                f"Lambda function {self.config.function_name} already exists. Updating configuration and code."
+                f"Lambda function {self.config.function_name} already exists. "
+                + "Updating configuration and code."
             )
 
             # Update function configuration
@@ -692,7 +672,8 @@ class LambdaManager:
 
                     if skip_large_layers and layer_size_mb > 30:
                         logger.warning(
-                            f"Skipping layer '{layer_def.layer_name}' due to size: {layer_size_mb:.2f} MB"
+                            f"Skipping layer '{layer_def.layer_name}' due to size: "
+                            + f"{layer_size_mb:.2f} MB"
                         )
                         continue
 
@@ -711,15 +692,11 @@ class LambdaManager:
                     new_layer_arns.append(arn)
 
                 except Exception as e:
-                    logger.error(
-                        f"Failed to build/publish layer '{layer_def.layer_name}': {e}"
-                    )
+                    logger.error(f"Failed to build/publish layer '{layer_def.layer_name}': {e}")
                     if not skip_large_layers:
                         raise
                     else:
-                        logger.warning(
-                            f"Skipping layer '{layer_def.layer_name}' due to error: {e}"
-                        )
+                        logger.warning(f"Skipping layer '{layer_def.layer_name}' due to error: {e}")
                         continue
 
         if not new_layer_arns:
@@ -728,9 +705,7 @@ class LambdaManager:
 
         existing = [] if replace_layers else self._get_existing_layers()
         layer_arns = (
-            new_layer_arns
-            if replace_layers
-            else self._merge_layers(existing, new_layer_arns)
+            new_layer_arns if replace_layers else self._merge_layers(existing, new_layer_arns)
         )
 
         # Attach layers with retry logic
@@ -749,18 +724,16 @@ class LambdaManager:
 
 
 def parse_args() -> argparse.Namespace:
-    ap = argparse.ArgumentParser(
-        description="Deploy Lambda, code, and layer per JSON definition."
-    )
-    ap.add_argument(
-        "--config-file", "-c", required=True, help="Path to JSON definition file"
-    )
+    ap = argparse.ArgumentParser(description="Deploy Lambda, code, and layer per JSON definition.")
+    ap.add_argument("--config-file", "-c", required=True, help="Path to JSON definition file")
     ap.add_argument(
         "--action",
         choices=["full", "code", "layer"],
         default="full",
         help=(
-            "full: configures the role, function, code and layer; code: only code update; layer: only layer update, Default: full"
+            "full: configures the role, function, code and layer; "
+            "code: only code update; "
+            "layer: only layer update, Default: full"
         ),
     )
     ap.add_argument(
@@ -773,9 +746,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip layers that are larger than 30MB to avoid upload timeouts.",
     )
-    ap.add_argument(
-        "--debug", action="store_true", help="Print AWS kwargs for troubleshooting."
-    )
+    ap.add_argument("--debug", action="store_true", help="Print AWS kwargs for troubleshooting.")
     args = ap.parse_args()
     return args
 

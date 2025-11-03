@@ -102,16 +102,12 @@ class AWSConfig:
                     )
                 else:
                     # For parameters, log name and full value
-                    logger.debug(
-                        f"Using environment variable for parameter {base_name}: {value}"
-                    )
+                    logger.debug(f"Using environment variable for parameter {base_name}: {value}")
                 return value
 
         # If not found in environment, log that we're using JSON value
         if is_secret:
-            logger.info(
-                f"Using JSON value for secret {base_name} (environment variable not found)"
-            )
+            logger.info(f"Using JSON value for secret {base_name} (environment variable not found)")
         else:
             logger.info(
                 f"Using JSON value for parameter {base_name} (environment variable not found)"
@@ -138,7 +134,7 @@ class AWSConfig:
         elif isinstance(permissions, list):
             result = []
             for item in permissions:
-                if item is not None and isinstance(item, (str, int, float)):
+                if item is not None and isinstance(item, str | int | float):
                     item_str = str(item).strip()
                     if item_str:
                         result.append(item_str)
@@ -286,7 +282,7 @@ def get_aws_account_id(region_name: str = "us-east-1") -> str:
         response = sts.get_caller_identity()
         return str(response["Account"])
     except Exception as e:
-        raise Exception(f"Failed to get AWS account ID: {e}")
+        raise Exception(f"Failed to get AWS account ID: {e}") from e
 
 
 def get_config(config_file: str) -> AWSConfig:
@@ -309,7 +305,7 @@ def get_config(config_file: str) -> AWSConfig:
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         data = json.load(f)
 
     # Get AWS account ID and add it to the config

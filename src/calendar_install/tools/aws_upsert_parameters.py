@@ -29,7 +29,7 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
-from infrastructure.platform_manager import create_logger
+from calendar_shared.aws_platform_manager import create_logger
 
 DEFAULT_BASE_PATH = "/apps/prod/secrets"
 
@@ -80,9 +80,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Push multiple parameters into SSM Parameter Store."
     )
-    parser.add_argument(
-        "--region", default="us-east-1", help="AWS region (default: us-east-1)"
-    )
+    parser.add_argument("--region", default="us-east-1", help="AWS region (default: us-east-1)")
     parser.add_argument(
         "--base-path",
         default=DEFAULT_BASE_PATH,
@@ -220,9 +218,7 @@ def main() -> int:
                     wrote += 1
 
         if args.require_all and missing_keys:
-            logger.error(
-                f"--require-all set and missing env keys: {', '.join(missing_keys)}"
-            )
+            logger.error(f"--require-all set and missing env keys: {', '.join(missing_keys)}")
             return 4
 
         if mismatched > 0:
@@ -230,9 +226,7 @@ def main() -> int:
             return 3
 
         logger.info(f"Done. Wrote {wrote}, skipped {skipped_missing} missing.")
-        storage_type = (
-            "SecureString (KMS alias/aws/ssm)" if encrypt else "String (plaintext)"
-        )
+        storage_type = "SecureString (KMS alias/aws/ssm)" if encrypt else "String (plaintext)"
         logger.info(f"Parameters stored as {storage_type}.")
         logger.info(
             "Lambda/ECS roles need ssm:GetParameter(s) and (if encrypted) kms:Decrypt to read them."

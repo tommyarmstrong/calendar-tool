@@ -12,8 +12,9 @@ import random
 import re
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import boto3
 from aws_config_manager import create_logger
@@ -51,7 +52,11 @@ def retry_with_backoff(
             if attempt < max_retries - 1:
                 delay = base_delay * (2**attempt) + random.uniform(0, 1)
                 logger.warning(
-                    f"Error occurred, retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries}): {e}"
+                    "Error occurred, retrying in %.1fs (attempt %d/%d): %s",
+                    delay,
+                    attempt + 1,
+                    max_retries,
+                    e,
                 )
                 time.sleep(delay)
                 continue
@@ -119,9 +124,7 @@ def disable_httpapi_default_endpoint(api_id: str, region: str = "us-east-1") -> 
         apigw.update_api(ApiId=api_id, DisableExecuteApiEndpoint=True)
         return True
     except ClientError as e:
-        raise RuntimeError(
-            f"Failed to disable default endpoint for API {api_id}: {e}"
-        ) from e
+        raise RuntimeError(f"Failed to disable default endpoint for API {api_id}: {e}") from e
 
 
 class APIDomainManager:
@@ -240,7 +243,8 @@ class APIDomainManager:
                 logger.warning(str(resp))
 
             logger.info(
-                f"Your MCP API is now accessible via https://{self.domain}/ ... (mTLS enforced only on the custom domain)."
+                "Your MCP API is at https://%s/ (mTLS via custom domain only).",
+                self.domain,
             )
 
         except Exception as e:
@@ -268,8 +272,10 @@ class CertificateBucketManager:
             region: AWS region
             kms_key_id: KMS key ID or alias for default encryption (optional)
             tags: Comma-separated tags: key1=val1,key2=val2
-            lifecycle_expire_noncurrent_days: Expire noncurrent object versions after N days (0=disabled)
-            ca_truststore_file: Path to the CA truststore file to upload (default: certificates/truststore.pem)
+            lifecycle_expire_noncurrent_days: Expire noncurrent object versions
+                after N days (0=disabled)
+            ca_truststore_file: Path to the CA truststore file to upload
+                (default: certificates/truststore.pem)
         """
         self.bucket = bucket
         self.region = region
@@ -311,9 +317,7 @@ class CertificateBucketManager:
 
         create_kwargs: dict[str, Any] = {"Bucket": self.bucket}
         if self.region != "us-east-1":
-            create_kwargs["CreateBucketConfiguration"] = {
-                "LocationConstraint": self.region
-            }
+            create_kwargs["CreateBucketConfiguration"] = {"LocationConstraint": self.region}
 
         try:
             self.s3.create_bucket(**create_kwargs)
@@ -429,7 +433,8 @@ class CertificateBucketManager:
             Bucket=self.bucket, LifecycleConfiguration=config
         )
         logger.info(
-            f"Lifecycle: noncurrent versions expire after {self.lifecycle_expire_noncurrent_days} days"
+            "Lifecycle: noncurrent versions expire after %d days",
+            self.lifecycle_expire_noncurrent_days,
         )
 
     def tag_bucket(self) -> None:
@@ -442,10 +447,11 @@ class CertificateBucketManager:
 
     def upload_certificate(self, certificate_path: str | None = None) -> None:
         """
-        Upload a certificate file to the S3 bucket with appropriate security configurations.
+        Upload a certificate file to S3 with appropriate security configuration.
 
         Args:
-            certificate_path: Path to the certificate file to upload (defaults to ca_truststore_file)
+            certificate_path: Path to the certificate file to upload
+                (defaults to ca_truststore_file)
         """
         if certificate_path is None:
             certificate_path = self.ca_truststore_file
@@ -508,9 +514,7 @@ class CertificateBucketManager:
                     Metadata=metadata,
                 )
 
-            logger.info(
-                f"Successfully uploaded certificate: s3://{self.bucket}/{s3_key}"
-            )
+            logger.info(f"Successfully uploaded certificate: s3://{self.bucket}/{s3_key}")
             logger.info(f"ETag: {response.get('ETag', 'N/A')}")
             logger.info(f"Version ID: {response.get('VersionId', 'N/A')}")
 
@@ -569,7 +573,8 @@ class CertificateBucketManager:
 
             logger.info(f"Bucket ready: s3://{self.bucket}")
             logger.info(
-                "Settings: Versioning=Enabled, PublicAccess=Blocked, Encryption=On, TLS-only policy applied."
+                "Settings: Versioning=Enabled, PublicAccess=Blocked, %s",
+                "Encryption=On, TLS-only policy.",
             )
             if self.kms_key_id:
                 logger.info(f"Encryption key: {self.kms_key_id}")
@@ -640,9 +645,7 @@ class ACMCertManager:
                     "After propagating DNS, ACM will validate and issue the cert automatically."
                 )
             else:
-                logger.info(
-                    "No DNS records returned yet. Re-run describe later to fetch CNAMEs."
-                )
+                logger.info("No DNS records returned yet. Re-run describe later to fetch CNAMEs.")
 
             return self.cert_arn
 
@@ -655,9 +658,7 @@ class ACMCertManager:
             logger.error(f"Unexpected error: {e}")
             raise
 
-    def wait_for_issuance(
-        self, cert_arn: str, timeout_sec: int = 900, poll_sec: int = 10
-    ) -> str:
+    def wait_for_issuance(self, cert_arn: str, timeout_sec: int = 900, poll_sec: int = 10) -> str:
         """
         Poll ACM until the certificate is ISSUED (or FAILED/timeout).
         Returns the final status.
@@ -734,9 +735,7 @@ class ACMCertManager:
         Returns a list of DNS records you must add:
         [{'Name': '...', 'Type': 'CNAME', 'Value': '...'}, ...]
         """
-        desc = self.acm.describe_certificate(CertificateArn=self.cert_arn)[
-            "Certificate"
-        ]
+        desc = self.acm.describe_certificate(CertificateArn=self.cert_arn)["Certificate"]
         records = []
         for dvo in desc.get("DomainValidationOptions", []):
             rr = dvo.get("ResourceRecord")
@@ -803,10 +802,7 @@ class APIMappingManager:
 
             if existing:
                 # If already mapped to the same API/stage, return; otherwise update it
-                if (
-                    existing.get("ApiId") == self.api_id
-                    and existing.get("Stage") == self.stage
-                ):
+                if existing.get("ApiId") == self.api_id and existing.get("Stage") == self.stage:
                     mapping_id = existing.get("ApiMappingId")
                     return mapping_id if mapping_id is not None else ""
 
@@ -831,13 +827,16 @@ class APIMappingManager:
             return mapping_id if mapping_id is not None else ""
 
         except ClientError as e:
-            raise RuntimeError(
-                f"Failed to upsert API mapping for domain '{self.domain_name}' (api={self.api_id}, stage={self.stage}, base_path={self.base_path!r}): {e}"
-            ) from e
+            msg = (
+                "Failed to upsert API mapping for domain "
+                + f"'{self.domain_name}' "
+                + f"(api={self.api_id}, stage={self.stage}, base_path={self.base_path!r}): {e}"
+            )
+            raise RuntimeError(msg) from e
 
 
 class AWS_mTLS_Manager:
-    """Manages AWS mTLS operations including certificates, truststores, and API Gateway configuration."""
+    """Manage mTLS: certificates, truststores, and API Gateway configuration."""
 
     def __init__(self, region: str = "us-east-1") -> None:
         """
@@ -858,15 +857,9 @@ class AWS_mTLS_Manager:
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments for the mTLS manager tool."""
-    parser = argparse.ArgumentParser(
-        description="Manage AWS mTLS infrastructure components"
-    )
-    parser.add_argument(
-        "--bucket", required=True, help="Bucket name (globally unique)."
-    )
-    parser.add_argument(
-        "--domain", required=True, help="Domain name (e.g., mcp.example.com)."
-    )
+    parser = argparse.ArgumentParser(description="Manage AWS mTLS infrastructure components")
+    parser.add_argument("--bucket", required=True, help="Bucket name (globally unique).")
+    parser.add_argument("--domain", required=True, help="Domain name (e.g., mcp.example.com).")
     parser.add_argument(
         "--region_name",
         default=REGION_NAME,
@@ -949,9 +942,7 @@ def main() -> None:
         s3_key = f"certificates/{cert_path.name}"
         version = bucket_manager.get_latest_certificate_version(s3_key)
         if version is None:
-            raise ValueError(
-                f"Failed to get the latest certificate version for {s3_key}"
-            )
+            raise ValueError(f"Failed to get the latest certificate version for {s3_key}")
         truststore_uri = f"{bucket_arn}/{s3_key}"
         api_domain_manager = APIDomainManager(
             domain=args.domain,
@@ -985,9 +976,7 @@ def main() -> None:
                 Overwrite=True,
                 Description="Calendar MCP API URL with mTLS custom domain",
             )
-            logger.info(
-                f"Updated Parameter Store: {parameter_name} = {parameter_value}"
-            )
+            logger.info(f"Updated Parameter Store: {parameter_name} = {parameter_value}")
         except ClientError as e:
             logger.error(f"Failed to update Parameter Store: {e}")
             raise

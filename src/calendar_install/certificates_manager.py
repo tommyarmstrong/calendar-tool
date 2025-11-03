@@ -22,7 +22,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 import boto3
 from aws_config_manager import create_logger
@@ -31,7 +30,7 @@ from cryptography.fernet import Fernet
 logger = create_logger(logger_name="aws_config", log_level="INFO")
 
 
-def run_openssl_command(command: list[str], description: str) -> Tuple[bool, str]:
+def run_openssl_command(command: list[str], description: str) -> tuple[bool, str | None]:
     """
     Run an OpenSSL command and return success status and output.
 
@@ -110,11 +109,11 @@ def create_environment_script(
         client_p12_b64_path = cert_dir / "client.p12.b64"
 
         if ca_cert_b64_path.exists():
-            with open(ca_cert_b64_path, "r") as f:
+            with open(ca_cert_b64_path) as f:
                 ca_cert_b64 = f.read().strip()
 
         if client_p12_b64_path.exists():
-            with open(client_p12_b64_path, "r") as f:
+            with open(client_p12_b64_path) as f:
                 client_p12_b64 = f.read().strip()
 
         # Create environment script (for sourcing)
@@ -150,13 +149,17 @@ ZSH_CONFIG="$HOME/.zshrc"
 BACKUP_FILE="$HOME/.zshrc.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Check if any Calendar MCP variables already exist in .zshrc
-if grep -q "CALENDAR_MCP_\\|CALENDAR_BEARER_TOKEN\\|CALENDAR_TOKEN_ENCRYPTION_KEY" "$ZSH_CONFIG" 2>/dev/null; then
+if grep -q "CALENDAR_MCP_\\|CALENDAR_BEARER_TOKEN\\|CALENDAR_TOKEN_ENCRYPTION_KEY" \
+    "$ZSH_CONFIG" 2>/dev/null; then
     echo "Calendar MCP variables already exist in ~/.zshrc"
     echo "Backing up current .zshrc to $BACKUP_FILE"
     cp "$ZSH_CONFIG" "$BACKUP_FILE"
 
-    # Remove existing calendar mcp variables (including CALENDAR_BEARER_TOKEN and CALENDAR_TOKEN_ENCRYPTION_KEY)
-    grep -v "CALENDAR_MCP_\\|CALENDAR_BEARER_TOKEN\\|CALENDAR_TOKEN_ENCRYPTION_KEY" "$ZSH_CONFIG" > "$ZSH_CONFIG.tmp" && mv "$ZSH_CONFIG.tmp" "$ZSH_CONFIG"
+    # Remove existing calendar mcp variables (including CALENDAR_BEARER_TOKEN
+    # and CALENDAR_TOKEN_ENCRYPTION_KEY)
+    grep -v "CALENDAR_MCP_\\|CALENDAR_BEARER_TOKEN\\|CALENDAR_TOKEN_ENCRYPTION_KEY" \
+        "$ZSH_CONFIG" > "$ZSH_CONFIG.tmp" && \
+        mv "$ZSH_CONFIG.tmp" "$ZSH_CONFIG"
     echo "Removed existing Calendar MCP variables"
 fi
 
@@ -203,7 +206,7 @@ echo "Or restart your terminal"
 
 def generate_ca_certificate(
     cert_dir: Path, ca_name: str = "CalendarMCPDevRootCA"
-) -> Tuple[bool, Optional[Path], Optional[Path]]:
+) -> tuple[bool, Path | None, Path | None]:
     """
     Generate the root CA certificate and key.
 
@@ -260,7 +263,7 @@ def generate_ca_certificate(
 
 def generate_client_certificate(
     cert_dir: Path, ca_crt_path: Path, ca_key_path: Path, client_name: str = "agent-123"
-) -> Tuple[bool, Optional[Path], Optional[Path]]:
+) -> tuple[bool, Path | None, Path | None]:
     """
     Generate client certificate and key.
 
@@ -325,7 +328,7 @@ def generate_client_certificate(
 
 def generate_server_certificate(
     cert_dir: Path, ca_crt_path: Path, ca_key_path: Path, server_name: str = "localhost"
-) -> Tuple[bool, Optional[Path], Optional[Path]]:
+) -> tuple[bool, Path | None, Path | None]:
     """
     Generate server certificate and key.
 
@@ -417,7 +420,7 @@ def create_truststore(cert_dir: Path, ca_crt_path: Path) -> bool:
     truststore_path = cert_dir / "truststore.pem"
 
     try:
-        with open(ca_crt_path, "r") as ca_file:
+        with open(ca_crt_path) as ca_file:
             ca_content = ca_file.read()
 
         with open(truststore_path, "w") as truststore_file:
@@ -435,9 +438,7 @@ def create_truststore(cert_dir: Path, ca_crt_path: Path) -> bool:
             logger.info(f"Copied truststore to: {target_path}")
         except Exception as copy_err:
             # Do not fail the truststore creation if copy fails; just log it
-            logger.warning(
-                f"Failed to copy truststore to agent_api certificates dir: {copy_err}"
-            )
+            logger.warning(f"Failed to copy truststore to agent_api certificates dir: {copy_err}")
 
         return True
     except Exception as e:
@@ -450,7 +451,7 @@ def create_p12_bundle(
     client_crt_path: Path,
     client_key_path: Path,
     p12_password: str,
-) -> Tuple[bool, Optional[Path]]:
+) -> tuple[bool, Path | None]:
     """
     Create P12 bundle from client certificate and key.
 
@@ -608,9 +609,7 @@ class CertificateManager:
             self.p12_password = self.secrets_dict["CALENDAR_MCP_CLIENT_P12_PASSWORD"]
             logger.info(f"Generated P12 password: {self.p12_password}")
 
-    def update_mtls_truststore(
-        self, domain: str, bucket: str, key: str, file_path: str
-    ) -> None:
+    def update_mtls_truststore(self, domain: str, bucket: str, key: str, file_path: str) -> None:
         """
         Update mTLS truststore by uploading a new truststore file to S3 and updating API Gateway.
 
@@ -669,9 +668,7 @@ class CertificateManager:
 
         # Step 1: Generate CA certificate
         logger.info("Step 1: Generating CA certificate...")
-        ca_success, ca_crt_path, ca_key_path = generate_ca_certificate(
-            self.cert_dir, self.ca_name
-        )
+        ca_success, ca_crt_path, ca_key_path = generate_ca_certificate(self.cert_dir, self.ca_name)
         if not ca_success or ca_crt_path is None or ca_key_path is None:
             logger.error("Failed to generate CA certificate. Exiting.")
             sys.exit(1)
@@ -712,22 +709,14 @@ class CertificateManager:
 
         # Step 6: Copy to MCP directory for local development
         if self.copy_to_mcp:
-            logger.info(
-                "Step 6: Copying server certificates to calendar_mcp directory..."
-            )
-            copy_success = copy_server_certificates_to_mcp(
-                self.cert_dir, self.script_dir
-            )
+            logger.info("Step 6: Copying server certificates to calendar_mcp directory...")
+            copy_success = copy_server_certificates_to_mcp(self.cert_dir, self.script_dir)
             if not copy_success:
-                logger.warning(
-                    "Failed to copy server certificates to calendar_mcp directory"
-                )
+                logger.warning("Failed to copy server certificates to calendar_mcp directory")
 
         # Step 7: Create environment script
         logger.info("Step 7: Creating environment script...")
-        env_success = create_environment_script(
-            self.cert_dir, self.secrets_dict, self.p12_password
-        )
+        env_success = create_environment_script(self.cert_dir, self.secrets_dict, self.p12_password)
         if not env_success:
             logger.warning("Failed to create environment script")
 
@@ -766,7 +755,11 @@ Examples:
   %(prog)s --ca-name MyCA --client-name my-client
   %(prog)s --no-copy-to-mcp --cleanup        # Don't copy to MCP, cleanup files
   %(prog)s --p12-password mypassword          # Use custom P12 password
-  %(prog)s --action update_mtls_truststore --domain mcp.example.com --bucket my-bucket --key certs/truststore.pem --file-path certificates/truststore.pem
+  %(prog)s --action update_mtls_truststore \
+      --domain mcp.example.com \
+      --bucket my-bucket \
+      --key certs/truststore.pem \
+      --file-path certificates/truststore.pem
         """,
     )
     parser.add_argument(
