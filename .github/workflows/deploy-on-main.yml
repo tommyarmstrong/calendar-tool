@@ -244,6 +244,7 @@ jobs:
           rm -f "$STAGE/shared_infrastructure/platform_manager.py"
           rm -f "$STAGE/shared_infrastructure/redis_manager.py"
           rm -f "$STAGE/shared_infrastructure/hmac_auth.py"
+          rm -f "$STAGE/shared_infrastructure/cryptography_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
