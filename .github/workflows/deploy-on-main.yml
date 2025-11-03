@@ -300,10 +300,13 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared files into shared_infrastructure/
-          mkdir -p "$STAGE/shared_infrastructure"
+          # Remove any dangling links
           rm -f "$STAGE/shared_infrastructure/platform_manager.py"
           rm -f "$STAGE/shared_infrastructure/redis_manager.py"
+          rm -f "$STAGE/shared_infrastructure/cryptography_manager.py"
+
+          # Copy the shared files into shared_infrastructure/
+          mkdir -p "$STAGE/shared_infrastructure"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
               "$STAGE/shared_infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
