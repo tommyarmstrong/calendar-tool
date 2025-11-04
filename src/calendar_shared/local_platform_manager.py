@@ -185,7 +185,14 @@ def invoke_lambda(
         with temporarily_change_dir(module_dir):
             try:
                 # Clear all potentially conflicting modules to ensure clean imports
-                modules_to_clear = ["infrastructure", "services", "app", "auth", "clients"]
+                modules_to_clear = [
+                    "infrastructure",
+                    "services",
+                    "app",
+                    "auth",
+                    "clients",
+                    "shared_infrastructure",
+                ]
                 for module_name_to_clear in modules_to_clear:
                     # Remove from sys.modules if it exists
                     if module_name_to_clear in sys.modules:
@@ -219,7 +226,14 @@ def invoke_lambda(
                     sys.path.insert(0, p)
 
             # Clear all potentially conflicting modules in this thread too
-            modules_to_clear = ["infrastructure", "services", "app", "auth", "clients"]
+            modules_to_clear = [
+                "infrastructure",
+                "services",
+                "app",
+                "auth",
+                "clients",
+                "shared_infrastructure",
+            ]
             for module_name_to_clear in modules_to_clear:
                 # Remove from sys.modules if it exists
                 if module_name_to_clear in sys.modules:

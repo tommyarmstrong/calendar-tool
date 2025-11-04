@@ -5,5 +5,5 @@ def manifest(base_url: str) -> dict[str, str | dict[str, str]]:
         "description": "MCP server exposing Google Calendar tools",
         "tools_endpoint": f"{base_url}/mcp/tools",
         "schema_endpoint": f"{base_url}/mcp/schemas",
-        "auth": {"type": "bearer"},  # simple local auth for Stage-1
+        "auth": {"type": "hmac"},  # HMAC auth: timestamp/nonce/signature headers
     }
