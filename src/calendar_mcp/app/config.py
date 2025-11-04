@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from shared_infrastructure.platform_manager import get_parameters
+from infrastructure.platform_manager import get_parameters
 
 # Constants
 GOOGLE_TOKEN_TTL = 3600 * 20 * 14  # 14 days

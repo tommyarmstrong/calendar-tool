@@ -8,7 +8,8 @@ It checks for existing keys in AWS Parameter Store and generates new ones if nee
 import os
 
 from cryptography.fernet import Fernet
-from shared_infrastructure.platform_manager import get_parameters
+
+from infrastructure.platform_manager import get_parameters
 
 
 def generate_fernet_key(key: str, value: str | None) -> None:

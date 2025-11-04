@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from shared_infrastructure.platform_manager import get_parameters
+from infrastructure.platform_manager import get_parameters
 
 # Constants that don't change
 MCP_SCHEMA_CACHE = "mcp:cache:calendar:v1"

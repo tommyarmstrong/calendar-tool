@@ -4,10 +4,10 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
-from shared_infrastructure.cryptography_manager import get_fernet
-from shared_infrastructure.redis_manager import build_redis_manager
 
 from app.config import get_settings
+from auth.cryptography_manager import get_fernet
+from infrastructure.redis_manager import build_redis_manager
 
 settings = get_settings()
 fernet = get_fernet(settings.calendar_token_encryption_key.encode("utf-8"))

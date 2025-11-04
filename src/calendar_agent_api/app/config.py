@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 
-from shared_infrastructure.platform_manager import get_parameters
+from infrastructure.platform_manager import get_parameters
 
 # Constants that don't change
 INVOKE_LAMBDA_NAME = "calendar_agent"

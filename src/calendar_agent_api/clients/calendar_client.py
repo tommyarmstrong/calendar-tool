@@ -16,8 +16,8 @@ from typing import Any
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import requests
-from shared_infrastructure.platform_manager import create_logger, get_parameters
-from shared_infrastructure.redis_manager import build_redis_manager
+from infrastructure.platform_manager import create_logger, get_parameters
+from infrastructure.redis_manager import build_redis_manager
 
 X_CLIENT_ID = "dev-test-client-v1"
 CLIENT_TIMEOUT = 60  # Seconds

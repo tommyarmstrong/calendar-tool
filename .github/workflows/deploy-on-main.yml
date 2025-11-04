@@ -126,16 +126,17 @@ jobs:
           rsync -a ./ "$STAGE"/
 
           # Copy the shared files into shared_infrastructure/
-          mkdir -p "$STAGE/shared_infrastructure"
-          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
-          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
-          rm -f "$STAGE/shared_infrastructure/hmac_auth.py"
+          mkdir -p "$STAGE/auth"
+          mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
+          rm -f "$STAGE/auth/hmac_auth.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/shared_infrastructure/platform_manager.py"
+              "$STAGE/infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/shared_infrastructure/redis_manager.py"
+              "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/hmac_auth.py" \
-              "$STAGE/shared_infrastructure/hmac_auth.py"
+              "$STAGE/auth/hmac_auth.py"
           echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth)"
 
           # Build zip excludes from .lambdaignore + baseline
@@ -184,14 +185,14 @@ jobs:
           STAGE="$(mktemp -d)"
           rsync -a ./ "$STAGE"/
 
-          # Copy the shared files into shared_infrastructure/
-          mkdir -p "$STAGE/shared_infrastructure"
-          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
-          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
+          # Copy the shared files into infrastructure/
+          mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/shared_infrastructure/platform_manager.py"
+              "$STAGE/infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/shared_infrastructure/redis_manager.py"
+              "$STAGE/infrastructure/redis_manager.py"
           echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager)"
 
           EXCLUDES=()
@@ -240,19 +241,20 @@ jobs:
           rsync -a ./ "$STAGE"/
 
           # Copy the shared files into shared_infrastructure/
-          mkdir -p "$STAGE/shared_infrastructure"
-          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
-          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
-          rm -f "$STAGE/shared_infrastructure/hmac_auth.py"
-          rm -f "$STAGE/shared_infrastructure/cryptography_manager.py"
+          mkdir -p "$STAGE/auth"
+          mkdir -p "$STAGE/infrastructure"
+          rm -f "$STAGE/auth/cryptography_manager.py"
+          rm -f "$STAGE/auth/hmac_auth.py"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/shared_infrastructure/platform_manager.py"
+              "$STAGE/infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/shared_infrastructure/redis_manager.py"
+              "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/hmac_auth.py" \
-              "$STAGE/shared_infrastructure/hmac_auth.py"
+              "$STAGE/auth/hmac_auth.py"
           cp "${{ github.workspace }}/src/calendar_shared/cryptography_manager.py" \
-              "$STAGE/shared_infrastructure/cryptography_manager.py"
+              "$STAGE/auth/cryptography_manager.py"
           echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, hmac_auth, cryptography_manager)"
 
           EXCLUDES=()
@@ -301,18 +303,19 @@ jobs:
           rsync -a ./ "$STAGE"/
 
           # Remove any dangling links
-          rm -f "$STAGE/shared_infrastructure/platform_manager.py"
-          rm -f "$STAGE/shared_infrastructure/redis_manager.py"
-          rm -f "$STAGE/shared_infrastructure/cryptography_manager.py"
+          rm -f "$STAGE/auth/cryptography_manager.py"
+          rm -f "$STAGE/infrastructure/platform_manager.py"
+          rm -f "$STAGE/infrastructure/redis_manager.py"
 
           # Copy the shared files into shared_infrastructure/
-          mkdir -p "$STAGE/shared_infrastructure"
+          mkdir -p "$STAGE/auth"
+          mkdir -p "$STAGE/infrastructure"
           cp "${{ github.workspace }}/src/calendar_shared/aws_platform_manager.py" \
-              "$STAGE/shared_infrastructure/platform_manager.py"
+              "$STAGE/infrastructure/platform_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/redis_manager.py" \
-              "$STAGE/shared_infrastructure/redis_manager.py"
+              "$STAGE/infrastructure/redis_manager.py"
           cp "${{ github.workspace }}/src/calendar_shared/cryptography_manager.py" \
-              "$STAGE/shared_infrastructure/cryptography_manager.py"
+              "$STAGE/auth/cryptography_manager.py"
           echo "Injected shared files → shared_infrastructure/ (platform_manager, redis_manager, cryptography_manager)"
 
           EXCLUDES=()

@@ -4,8 +4,8 @@ import uuid
 from typing import Any
 
 from app.config import get_settings
+from auth.hmac_auth import hmac_headers_for_request, json_bytes_for_hmac
 from services.requests_helpers import requests_verify_setting, session_with_pkcs12
-from shared_infrastructure.hmac_auth import hmac_headers_for_request, json_bytes_for_hmac
 
 _TIMEOUT = 30.0
 
